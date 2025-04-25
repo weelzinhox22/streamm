@@ -194,10 +194,10 @@ const Footer: React.FC = () => {
         
         <FooterColumn>
           <FooterTitle>Contato</FooterTitle>
-          <FooterExternalLink href="mailto:info@megafilmestv.com">
-            <span className="icon">✉️</span> info@megafilmestv.com
+          <FooterExternalLink href="mailto:weelzinhox22@gmail.com">
+            <span className="icon">✉️</span> weelzinhox22@gmail.com
           </FooterExternalLink>
-          <FooterExternalLink href="https://t.me/megafilmestv" target="_blank" rel="noopener noreferrer">
+          <FooterExternalLink href="https://t.me/megafilmestv2" target="_blank" rel="noopener noreferrer">
             <span className="icon">📱</span> Telegram
           </FooterExternalLink>
         </FooterColumn>
