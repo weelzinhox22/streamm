@@ -1,0 +1,41 @@
+# Dependências
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Arquivos de compilação
+/build
+/dist
+
+# Arquivos de ambiente local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos de editor
+.idea
+.vscode
+*.swp
+*.swo
+
+# Arquivos de teste
+/coverage
+
+# Arquivos e diretórios temporários
+/tmp
+*.log
+
+# Arquivos de git
+.git
+.gitignore
+
+# Outros
+README.md
+LICENSE
+docker-compose.yml 
