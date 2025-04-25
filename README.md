@@ -1,46 +1,67 @@
-# Getting Started with Create React App
+# MegaFilmesTV
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Um aplicativo de streaming React que carrega listas M3U e oferece uma experiência semelhante à Netflix para reprodução de conteúdo.
 
-## Available Scripts
+## Características
 
-In the project directory, you can run:
+- Carregamento virtual de listas M3U
+- Interface inspirada na Netflix e MAX
+- Categorização automática de conteúdo (filmes, séries, canais)
+- Player de vídeo integrado
+- Design responsivo (compatível com web, mobile e TVs)
+- Animações suaves com GSAP
+- Funcionalidade de busca
+- Paginação para limitar a 30 itens por página
+- Botão "Voltar ao topo"
 
-### `npm start`
+## Tecnologias
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+- React com TypeScript
+- React Router para navegação
+- Styled Components para estilização
+- GSAP para animações
+- React Player para reprodução de mídia
+- Axios para requisições HTTP
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## Instalação
 
-### `npm test`
+1. Clone o repositório
+```bash
+git clone https://github.com/seu-usuario/megafilmestv.git
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+2. Instale as dependências
+```bash
+cd megafilmestv
+npm install
+```
 
-### `npm run build`
+3. Inicie o servidor de desenvolvimento
+```bash
+npm start
+```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+4. Acesse o aplicativo em [http://localhost:3000](http://localhost:3000)
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Implantação
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+Este projeto foi desenvolvido para ser facilmente implantado no Netlify:
 
-### `npm run eject`
+1. Faça build do projeto
+```bash
+npm run build
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+2. Implante a pasta `build` no Netlify
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## M3U URL
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+O aplicativo usa a URL da lista M3U: https://is.gd/angeexx
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+## Contribuição
 
-## Learn More
+Contribuições são bem-vindas! Sinta-se à vontade para abrir issues e enviar pull requests.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Licença
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+[MIT](https://choosealicense.com/licenses/mit/)

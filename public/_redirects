@@ -1,0 +1,2 @@
+# Proxy para contornar problemas de CORS
+/api/proxy/* https://:splat 200 
