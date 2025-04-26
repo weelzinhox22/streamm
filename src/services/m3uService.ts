@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { MediaItem, Category, Genre, FeaturedContent } from '../types';
 import { localM3UContent, hasLocalPlaylist, loadLocalPlaylistFromFile } from '../data/localPlaylist';
+import { preloadM3UCache } from './m3uCache';
 
 // URL principal da lista M3U
 const MAIN_M3U_URL = 'https://is.gd/angeexx';
@@ -703,6 +704,50 @@ export const getEpisodesBySeasons = (items: MediaItem[], seriesId: string): Reco
 // Main function to load and process the M3U playlist
 export const loadM3UData = async () => {
   try {
+    // Tentar usar o cache pré-carregado primeiro
+    try {
+      console.log('Tentando carregar dados do cache M3U...');
+      const cachedItems = await preloadM3UCache();
+      
+      if (cachedItems && cachedItems.length > 0) {
+        console.log(`Cache M3U carregado com sucesso: ${cachedItems.length} itens`);
+        
+        // Organize series content
+        const organizedContent = organizeSeriesContent(cachedItems);
+        
+        // Use the listing items for display
+        const processedItems = organizedContent.listingItems;
+        
+        // Organize by content type
+        const contentByType = organizeByContentType(processedItems);
+        
+        // Organize by category
+        const categories = organizeByCategories(processedItems);
+        
+        // Organize by genre
+        const genres = organizeByGenre(processedItems);
+        
+        // Get featured content
+        const featured = getFeaturedContent(processedItems);
+        
+        return {
+          items: processedItems,
+          // Manter todos os itens incluindo episódios para acesso interno
+          allItems: organizedContent.allItems,
+          rawItems: cachedItems, // Original items before series organization
+          contentByType,
+          categories,
+          genres,
+          featured
+        };
+      }
+    } catch (cacheError) {
+      console.warn('Erro ao carregar do cache:', cacheError);
+    }
+    
+    // Se o cache falhar, carrega normalmente
+    console.log('Carregando dados M3U tradicionalmente...');
+    
     // Fetch the playlist
     const content = await fetchM3UPlaylist();
     

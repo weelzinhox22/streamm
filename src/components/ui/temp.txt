@@ -28,31 +28,23 @@ const PlayerContainer = styled.div`
   display: flex;
   flex-direction: column;
   min-height: 300px; /* Altura mínima para o player */
-  margin: 0 auto; /* Centralizar horizontalmente */
-  display: flex;
-  justify-content: center;
-  align-items: center;
   
   @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
-    margin: 0;
+    margin-top: 10px;
     margin-bottom: 0;
-    border-radius: 0;
   }
 `;
 
 const PlayerWrapper = styled.div`
   position: relative;
-  padding-top: 56.25%; /* 16:9 aspect ratio */
+  padding-top: 50.25%; /* Player ratio para desktop */
   height: 0;
   overflow: hidden;
   min-height: 200px; /* Altura mínima para garantir que o player seja visível */
-  background-color: #000;
-  width: 100%;
   
   @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
-    border-radius: 0;
-    min-height: 0;
-    padding-top: 56.25%; /* Manter 16:9 para mobile também */
+    padding-top: 56.25%; /* Melhor proporção para mobile (16:9) */
+    min-height: 175px; /* Altura reduzida no mobile */
   }
 `;
 
@@ -266,14 +258,11 @@ const LoadingSpinner = styled.div`
 
 // Novo estilo para o container de episódios
 const EpisodesSection = styled.div`
-  margin-top: 0;
+  margin-top: 10px;
   border-top: 1px solid ${({ theme }) => theme.colors.border};
-  background-color: ${({ theme }) => theme.colors.backgroundDark};
-  padding: 10px 0;
   
   @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
-    margin-top: 0;
-    padding: 5px;
+    margin-top: 5px;
   }
 `;
 
@@ -295,32 +284,31 @@ const EpisodesList = styled.div`
   gap: 10px;
   margin: 0 auto;
   max-width: 800px;
-  padding: 0 10px;
   
   @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
-    gap: 8px;
+    padding: 0 10px;
   }
 `;
 
 const EpisodeItem = styled.div<{ isActive: boolean }>`
   display: flex;
   align-items: center;
-  padding: 12px;
+  padding: 15px;
   border-radius: ${({ theme }) => theme.borderRadius.md};
-  background-color: ${({ isActive, theme }) =>
+  background-color: ${({ isActive, theme }) => 
     isActive ? `${theme.colors.primary}22` : theme.colors.backgroundLight};
   cursor: pointer;
   transition: background-color 0.2s ease;
-  border: 1px solid ${({ isActive, theme }) =>
+  border: 1px solid ${({ isActive, theme }) => 
     isActive ? theme.colors.primary : theme.colors.border};
   
   &:hover {
-    background-color: ${({ isActive, theme }) =>
+    background-color: ${({ isActive, theme }) => 
       isActive ? `${theme.colors.primary}33` : `${theme.colors.backgroundLight}aa`};
   }
   
   @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
-    padding: 8px;
+    padding: 10px;
   }
 `;
 
@@ -357,10 +345,6 @@ const NavigationButtons = styled.div`
   justify-content: center;
   gap: 10px;
   margin: 15px 0;
-  
-  @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
-    margin: 8px 0;
-  }
 `;
 
 const NavigationButton = styled.button`
@@ -386,11 +370,6 @@ const NavigationButton = styled.button`
   
   svg {
     font-size: 1rem;
-  }
-  
-  @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
-    padding: 6px 10px;
-    font-size: 0.9rem;
   }
 `;
 
@@ -522,117 +501,40 @@ const ProgressBarComponent = memo(({
   );
 });
 
-// Estilo para controles mobile otimizados
-const MobileControls = styled.div<{ visible: boolean }>`
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  opacity: ${({ visible }) => (visible ? 1 : 0)};
-  transition: opacity 0.3s ease;
-  z-index: 10;
-
-  /* Gradientes para melhorar a visualização dos controles */
-  &:before, &:after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    height: 100px;
-    pointer-events: none;
-  }
-
-  &:before {
-    top: 0;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%);
-  }
-
-  &:after {
-    bottom: 0;
-    background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%);
-  }
-`;
-
 // Componente otimizado para os controles
-const PlayerControlsComponent = memo(({
-  visible,
-  playing,
-  muted,
-  volume,
-  fullscreen,
-  duration,
-  played,
+const PlayerControlsComponent = memo(({ 
+  visible, 
+  playing, 
+  muted, 
+  volume, 
+  fullscreen, 
+  duration, 
+  played, 
   loaded,
-  onTogglePlay,
-  onToggleMute,
-  onToggleFullscreen,
+  onTogglePlay, 
+  onToggleMute, 
+  onToggleFullscreen, 
   onVolumeChange,
   onSeek,
-  formatTime,
-  isMobile
-}: {
-  visible: boolean,
-  playing: boolean,
-  muted: boolean,
-  volume: number,
-  fullscreen: boolean,
-  duration: number,
-  played: number,
+  formatTime
+}: { 
+  visible: boolean, 
+  playing: boolean, 
+  muted: boolean, 
+  volume: number, 
+  fullscreen: boolean, 
+  duration: number, 
+  played: number, 
   loaded: number,
-  onTogglePlay: () => void,
-  onToggleMute: () => void,
-  onToggleFullscreen: () => void,
+  onTogglePlay: () => void, 
+  onToggleMute: () => void, 
+  onToggleFullscreen: () => void, 
   onVolumeChange: (e: React.MouseEvent<HTMLDivElement>) => void,
   onSeek: (e: React.MouseEvent<HTMLDivElement>) => void,
-  formatTime: (seconds: number) => string,
-  isMobile: boolean
+  formatTime: (seconds: number) => string
 }) => {
   const volumeSliderRef = useRef<HTMLDivElement>(null);
   
-  // Se for mobile, usar controles adaptados para toque
-  if (isMobile) {
-    return (
-      <MobileControls visible={visible}>
-        <PlayerHeader>
-          <PlayerTitle>{playing ? 'Reproduzindo' : 'Pausado'}</PlayerTitle>
-        </PlayerHeader>
-        
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1 }}>
-          <ControlButton onClick={onTogglePlay} aria-label={playing ? 'Pausar' : 'Reproduzir'} style={{ width: 80, height: 80 }}>
-            {playing ? <PauseIcon /> : <PlayIcon />}
-          </ControlButton>
-        </div>
-        
-        <div>
-          <ProgressBarComponent played={played} loaded={loaded} onSeek={onSeek} />
-          
-          <ButtonsGroup>
-            <ButtonGroupLeft>
-              <ControlButton onClick={onToggleMute} aria-label={muted ? 'Ativar som' : 'Silenciar'}>
-                {muted ? <VolumeMuteIcon /> : <VolumeUpIcon />}
-              </ControlButton>
-
-              <TimeDisplay>
-                {formatTime(played * duration)} / {formatTime(duration)}
-              </TimeDisplay>
-            </ButtonGroupLeft>
-
-            <ButtonGroupRight>
-              <ControlButton onClick={onToggleFullscreen} aria-label={fullscreen ? 'Sair da tela cheia' : 'Tela cheia'}>
-                {fullscreen ? <CompressIcon /> : <ExpandIcon />}
-              </ControlButton>
-            </ButtonGroupRight>
-          </ButtonsGroup>
-        </div>
-      </MobileControls>
-    );
-  }
-  
-  // Versão desktop original
   return (
     <PlayerControls visible={visible}>
       <ButtonsGroup>
@@ -671,11 +573,47 @@ const PlayerControlsComponent = memo(({
   );
 });
 
+// Componente otimizado para os episódios
+const EpisodesListComponent = memo(({ 
+  episodes, 
+  currentEpisode, 
+  onEpisodeSelect 
+}: { 
+  episodes: MediaItem[], 
+  currentEpisode: MediaItem, 
+  onEpisodeSelect: (episode: MediaItem) => void 
+}) => {
+  return (
+    <EpisodesList>
+      {episodes.map((episode) => (
+        <EpisodeItem 
+          key={episode.id} 
+          isActive={currentEpisode.id === episode.id}
+          onClick={() => onEpisodeSelect(episode)}
+        >
+          <EpisodeNumber>
+            {episode.season && episode.episode ? `E${episode.episode}` : ''}
+          </EpisodeNumber>
+          <EpisodeInfo>
+            <EpisodeTitle>{episode.name}</EpisodeTitle>
+            <EpisodeDescription>
+              {episode.description?.slice(0, 100)}{episode.description && episode.description.length > 100 ? '...' : ''}
+            </EpisodeDescription>
+          </EpisodeInfo>
+          <PlayButton>
+            <PlayIcon />
+          </PlayButton>
+        </EpisodeItem>
+      ))}
+    </EpisodesList>
+  );
+});
+
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ 
   item, 
   url, 
   title, 
-  autoPlay = false,
+  autoPlay = true, 
   onBack, 
   onClose,
   episodes = [],
@@ -694,7 +632,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [videoUrl, setVideoUrl] = useState<string>('');
   const [isLiveStream, setIsLiveStream] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   
   const playerRef = useRef<ReactPlayer>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -702,22 +639,34 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const controlsTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const volumeSliderRef = useRef<HTMLDivElement>(null);
   
-  // Detectar se é dispositivo móvel
+  // Encontrar índice do episódio atual
+  const currentEpisodeIndex = currentEpisode 
+    ? episodes.findIndex(ep => ep.id === currentEpisode.id)
+    : -1;
+    
+  // Determinar episódio anterior e próximo
+  const prevEpisode = currentEpisodeIndex > 0 ? episodes[currentEpisodeIndex - 1] : null;
+  const nextEpisode = currentEpisodeIndex < episodes.length - 1 ? episodes[currentEpisodeIndex + 1] : null;
+
+  // Pré-carregar conteúdo para evitar mensagens de erro
   useEffect(() => {
-    const checkIfMobile = () => {
-      setIsMobile(window.innerWidth <= 768);
+    // Funções de pré-carregamento
+    const preloadNextEpisode = () => {
+      if (nextEpisode && nextEpisode.url) {
+        const link = document.createElement('link');
+        link.rel = 'preload';
+        link.href = nextEpisode.url;
+        link.as = 'video';
+        document.head.appendChild(link);
+      }
     };
     
-    // Verificar no carregamento
-    checkIfMobile();
-    
-    // Adicionar listener para redimensionamento
-    window.addEventListener('resize', checkIfMobile);
-    
-    // Limpar listener
-    return () => window.removeEventListener('resize', checkIfMobile);
-  }, []);
-
+    // Pré-carregar o próximo episódio quando o atual é carregado
+    if (!loading && episodes && episodes.length > 0) {
+      preloadNextEpisode();
+    }
+  }, [loading, nextEpisode, episodes]);
+  
   // Callback functions
   const togglePlay = useCallback(() => {
     setPlaying(prev => !prev);
@@ -764,10 +713,31 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       : `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
   }, []);
 
-  // Handle video ending
+  const handleEpisodeClick = useCallback((episode: MediaItem) => {
+    if (onEpisodeSelect) {
+      onEpisodeSelect(episode);
+    }
+  }, [onEpisodeSelect]);
+  
+  // Function to navigate to previous episode
+  const goToPrevEpisode = () => {
+    if (prevEpisode && onEpisodeSelect) {
+      onEpisodeSelect(prevEpisode);
+    }
+  };
+
+  // Function to navigate to next episode
+  const goToNextEpisode = () => {
+    if (nextEpisode && onEpisodeSelect) {
+      onEpisodeSelect(nextEpisode);
+    }
+  };
+
+  // Auto-play next episode when current one ends
   const handleEnded = () => {
-    // Simply stop playing when video ends
-    setPlaying(false);
+    if (nextEpisode && onEpisodeSelect) {
+      onEpisodeSelect(nextEpisode);
+    }
   };
 
   // Handle volume change
@@ -1062,84 +1032,114 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }
   
   return (
-    <PlayerContainer ref={containerRef}>
-      <PlayerWrapper ref={playerWrapperRef}>
-        <PlayerHeader style={{ opacity: controlsVisible ? 1 : 0, display: isMobile ? 'none' : 'flex' }}>
-          <PlayerTitle>{title || (item?.name || 'Reproduzindo')}</PlayerTitle>
-          <Button 
-            variant="text" 
-            size="small" 
-            onClick={onBack || onClose} 
-            icon="✕"
-          >
-            Fechar
-          </Button>
-        </PlayerHeader>
-        
-        <PlayerInner>
-          <ReactPlayer
-            ref={playerRef}
-            url={videoUrl}
-            width="100%"
-            height="100%"
+    <>
+      <PlayerContainer ref={containerRef}>
+        <PlayerWrapper ref={playerWrapperRef}>
+          <PlayerHeader style={{ opacity: controlsVisible ? 1 : 0 }}>
+            <PlayerTitle>{title || (item?.name || 'Reproduzindo')}</PlayerTitle>
+            <Button 
+              variant="text" 
+              size="small" 
+              onClick={onBack || onClose} 
+              icon="✕"
+            >
+              Fechar
+            </Button>
+          </PlayerHeader>
+          
+          <PlayerInner>
+            <ReactPlayer
+              ref={playerRef}
+              url={videoUrl}
+              width="100%"
+              height="100%"
+              playing={playing}
+              volume={volume}
+              muted={muted}
+              onReady={handleReady}
+              onError={handleError}
+              onProgress={handleProgress}
+              onDuration={handleDuration}
+              onEnded={handleEnded}
+              controls={false}
+              playsinline={true} /* Importante para mobile */
+              config={{
+                file: {
+                  forceVideo: true,
+                  attributes: {
+                    crossOrigin: 'anonymous',
+                    controlsList: 'nodownload',
+                    preload: 'auto',
+                    playsinline: true
+                  },
+                  hlsOptions: {
+                    enableWorker: true,
+                    lowLatencyMode: true,
+                    debug: false,
+                    maxLoadingDelay: 4,
+                    minAutoBitrate: 0
+                  },
+                  forceHLS: false,
+                  forceDASH: false
+                }
+              }}
+            />
+          </PlayerInner>
+          
+          <PlayerControlsComponent 
+            visible={controlsVisible}
             playing={playing}
-            volume={volume}
             muted={muted}
-            onReady={handleReady}
-            onError={handleError}
-            onProgress={handleProgress}
-            onDuration={handleDuration}
-            onEnded={handleEnded}
-            controls={false}
-            playsinline={true} /* Importante para mobile */
-            config={{
-              file: {
-                forceVideo: true,
-                attributes: {
-                  crossOrigin: 'anonymous',
-                  controlsList: 'nodownload',
-                  preload: 'auto',
-                  playsinline: true
-                },
-                hlsOptions: {
-                  enableWorker: true,
-                  lowLatencyMode: true,
-                  debug: false,
-                  maxLoadingDelay: 4,
-                  minAutoBitrate: 0
-                },
-                forceHLS: false,
-                forceDASH: false
-              }
-            }}
+            volume={volume}
+            fullscreen={fullscreen}
+            duration={duration}
+            played={played}
+            loaded={loaded}
+            onTogglePlay={togglePlay}
+            onToggleMute={toggleMute}
+            onToggleFullscreen={toggleFullscreen}
+            onVolumeChange={handleVolumeSliderChange}
+            onSeek={handleSeek}
+            formatTime={formatTime}
           />
-        </PlayerInner>
-        
-        <PlayerControlsComponent 
-          visible={controlsVisible}
-          playing={playing}
-          muted={muted}
-          volume={volume}
-          fullscreen={fullscreen}
-          duration={duration}
-          played={played}
-          loaded={loaded}
-          onTogglePlay={togglePlay}
-          onToggleMute={toggleMute}
-          onToggleFullscreen={toggleFullscreen}
-          onVolumeChange={handleVolumeSliderChange}
-          onSeek={handleSeek}
-          formatTime={formatTime}
-          isMobile={isMobile}
-        />
-        
-        {loading && (
-          <LoadingOverlay>
-            <LoadingSpinner />
-          </LoadingOverlay>
-        )}
-      </PlayerWrapper>
-    </PlayerContainer>
+          
+          {loading && (
+            <LoadingOverlay>
+              <LoadingSpinner />
+            </LoadingOverlay>
+          )}
+        </PlayerWrapper>
+      </PlayerContainer>
+      
+      {/* Lista de episódios para séries */}
+      {episodes && episodes.length > 0 && currentEpisode && (
+        <EpisodesSection>
+          <EpisodesTitle>Episódios</EpisodesTitle>
+          
+          {/* Botões de navegação */}
+          <NavigationButtons>
+            <NavigationButton 
+              onClick={goToPrevEpisode} 
+              disabled={!prevEpisode}
+            >
+              <BackwardIcon /> Episódio Anterior
+            </NavigationButton>
+            <NavigationButton 
+              onClick={goToNextEpisode} 
+              disabled={!nextEpisode}
+            >
+              Próximo Episódio <ForwardIcon />
+            </NavigationButton>
+          </NavigationButtons>
+          
+          <EpisodesListComponent 
+            episodes={episodes}
+            currentEpisode={currentEpisode}
+            onEpisodeSelect={handleEpisodeClick}
+          />
+        </EpisodesSection>
+      )}
+    </>
   );
 };
 

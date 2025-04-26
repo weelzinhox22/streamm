@@ -9,6 +9,7 @@ import { MediaItem } from '../types';
 import { getSeriesEpisodes, getEpisodesBySeasons } from '../services/m3uService';
 import Modal from '../components/ui/Modal';
 import MediaRow from '../components/ui/MediaRow';
+import { findItemFromM3U } from '../services/m3uCache';
 
 const DetailContainer = styled.div`
   padding: ${({ theme }) => `${theme.spacing.xl} 0`};
@@ -44,6 +45,11 @@ const MediaContent = styled.div`
   @media (max-width: ${({ theme }) => theme.breakpoints.lg}) {
     grid-template-columns: 1fr;
   }
+  
+  @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
+    grid-gap: ${({ theme }) => theme.spacing.md};
+    margin-bottom: ${({ theme }) => theme.spacing.lg};
+  }
 `;
 
 const MediaInfo = styled.div`
@@ -58,7 +64,8 @@ const Title = styled.h1`
   margin-bottom: ${({ theme }) => theme.spacing.md};
   
   @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
-    font-size: 2rem;
+    font-size: 1.75rem;
+    margin-bottom: ${({ theme }) => theme.spacing.sm};
   }
 `;
 
@@ -143,12 +150,23 @@ const SeasonTitle = styled.h3`
   margin-bottom: ${({ theme }) => theme.spacing.md};
   font-size: 1.2rem;
   color: ${({ theme }) => theme.colors.primary};
+  
+  @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
+    font-size: 1.1rem;
+    margin-bottom: ${({ theme }) => theme.spacing.sm};
+    padding-left: ${({ theme }) => theme.spacing.sm};
+  }
 `;
 
-const EpisodeList = styled.div`
+const EpisodesList = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: ${({ theme }) => theme.spacing.md};
+  
+  @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
+    grid-template-columns: 1fr;
+    gap: ${({ theme }) => theme.spacing.sm};
+  }
 `;
 
 const EpisodeCard = styled.div`
@@ -201,6 +219,10 @@ const EpisodeNumber = styled.div`
 
 const SeasonsContainer = styled.div`
   margin-top: ${({ theme }) => theme.spacing.xxl};
+  
+  @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
+    margin-top: ${({ theme }) => theme.spacing.lg};
+  }
 `;
 
 const SectionTitle = styled.h2`
@@ -211,12 +233,6 @@ const SectionTitle = styled.h2`
 
 const SeasonSection = styled.div`
   margin-bottom: ${({ theme }) => theme.spacing.lg};
-`;
-
-const EpisodesList = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: ${({ theme }) => theme.spacing.md};
 `;
 
 const EpisodeItem = styled.div`
@@ -242,13 +258,19 @@ const PlayButton = styled.div`
   background: none;
   border: none;
   color: ${({ theme }) => theme.colors.primary};
-  font-size: 1rem;
+  font-size: 1.5rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   padding: 0;
   transition: color 0.2s ease;
+  
+  @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
+    padding: 8px;
+    border-radius: 50%;
+    background-color: ${({ theme }) => theme.colors.primary}22;
+  }
   
   &:hover {
     color: ${({ theme }) => theme.colors.primary};
@@ -266,111 +288,145 @@ const DetailPage: React.FC = () => {
   const [selectedEpisode, setSelectedEpisode] = useState<MediaItem | null>(null);
   const [activeItem, setActiveItem] = useState<MediaItem | null>(null);
   const [isSeries, setIsSeries] = useState(false);
+  const [autoPlayEnabled, setAutoPlayEnabled] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   
   const { 
     items,
     allItems, 
-    loading, 
-    error 
+    loading: dataLoading, 
+    error: dataError 
   } = useM3UData();
   
   const navigate = useNavigate();
   
+  // Função para processar um item encontrado
+  const handleFoundItem = useCallback((foundItem: MediaItem) => {
+    console.log("Item encontrado:", foundItem);
+    setItem(foundItem);
+    
+    // Check if it's a series item with empty URL (parent series)
+    if (foundItem.type === 'series' && (!foundItem.url || foundItem.url === '')) {
+      console.log("Encontrando episódios para a série:", foundItem.id);
+      
+      // Use allItems to get episodes
+      const seriesEpisodes = getSeriesEpisodes(allItems || [], foundItem.id);
+      setEpisodes(seriesEpisodes);
+      
+      // Group episodes by season
+      const seasonEpisodes = getEpisodesBySeasons(allItems || [], foundItem.id);
+      setEpisodesBySeasons(seasonEpisodes);
+      
+      console.log(`Encontrados ${seriesEpisodes.length} episódios em ${Object.keys(seasonEpisodes).length} temporadas`);
+      setIsSeries(true);
+    }
+    
+    // Definir relacionados com o mesmo tipo (usando apenas o que já está carregado)
+    const sameTypeItems = items.filter(i => 
+      i.id !== foundItem?.id && 
+      i.type === foundItem?.type
+    );
+    
+    // Definir relacionados com o mesmo gênero se disponível
+    let related: MediaItem[] = [];
+    if (foundItem?.genre) {
+      related = sameTypeItems.filter(i => i.genre === foundItem?.genre);
+    }
+    
+    // Se não tem suficientes do mesmo gênero, adiciona mais do mesmo tipo
+    if (related.length < 10) {
+      const moreItems = sameTypeItems.filter(i => 
+        !foundItem?.genre || i.genre !== foundItem?.genre
+      );
+      
+      related = [...related, ...moreItems].slice(0, 10);
+    }
+    
+    console.log(`Encontrados ${related.length} itens relacionados`);
+    setRelatedItems(related);
+  }, [items, allItems]);
+  
   // Find the item and related items
   useEffect(() => {
-    if (!loading && items.length > 0) {
+    if (!dataLoading) {
+      setIsLoading(true);
       console.log(`Procurando item: tipo=${contentType}, id=${id}`);
-      console.log(`Temos ${items.length} itens na lista`);
       
       // Clean the contentType (remove trailing 's' if any)
       const type = contentType?.endsWith('s') 
         ? contentType.slice(0, -1) as 'movie' | 'series' | 'channel'
         : (contentType as 'movie' | 'series' | 'channel');
       
-      // Find the item - first try by ID
-      let foundItem = items.find(item => item.id === id && (!type || item.type === type));
-      
-      // Se não encontrar pelo ID, tenta pelo nome
-      if (!foundItem) {
-        console.log("Item não encontrado pelo ID, tentando pelo nome...");
-        const decodedId = decodeURIComponent(id || '');
-        foundItem = items.find(item => 
-          (item.name === decodedId || 
-           item.tvgName === decodedId) && 
-          (!type || item.type === type)
-        );
-      }
-      
-      // Se ainda não encontrou, tenta por correspondência parcial do nome
-      if (!foundItem) {
-        console.log("Item não encontrado exatamente, tentando por correspondência parcial...");
-        const decodedId = decodeURIComponent(id || '').toLowerCase();
-        foundItem = items.find(item => 
-          (item.name?.toLowerCase().includes(decodedId) || 
-           item.tvgName?.toLowerCase().includes(decodedId)) && 
-          (!type || item.type === type)
-        );
-      }
-      
-      // Se continua não encontrando, considera qualquer item com URL válida
-      if (!foundItem) {
-        console.log("Tentando encontrar qualquer item com este nome e URL válida...");
-        const decodedId = decodeURIComponent(id || '').toLowerCase();
-        foundItem = items.find(item => 
-          (item.name?.toLowerCase().includes(decodedId) || 
-           item.tvgName?.toLowerCase().includes(decodedId)) && 
-          item.url && item.url.trim() !== ''
-        );
-      }
-      
-      if (foundItem) {
-        console.log("Item encontrado:", foundItem);
-        setItem(foundItem);
-        
-        // Check if it's a series item with empty URL (parent series)
-        if (foundItem.type === 'series' && (!foundItem.url || foundItem.url === '')) {
-          console.log("Encontrando episódios para a série:", foundItem.id);
+      const findItem = async () => {
+        try {
+          // Primeiro tentar encontrar diretamente pelo ID/nome no cache para otimizar
+          if (id) {
+            const decodedId = decodeURIComponent(id || '');
+            const directItem = await findItemFromM3U(decodedId, type);
+            
+            if (directItem) {
+              console.log("Item encontrado rapidamente através do cache:", directItem);
+              handleFoundItem(directItem);
+              setIsLoading(false);
+              return;
+            }
+          }
           
-          // Use allItems to get episodes
-          const seriesEpisodes = getSeriesEpisodes(allItems || items, foundItem.id);
-          setEpisodes(seriesEpisodes);
-          
-          // Group episodes by season
-          const seasonEpisodes = getEpisodesBySeasons(allItems || items, foundItem.id);
-          setEpisodesBySeasons(seasonEpisodes);
-          
-          console.log(`Encontrados ${seriesEpisodes.length} episódios em ${Object.keys(seasonEpisodes).length} temporadas`);
-          setIsSeries(true);
+          // Se não encontrou pelo método rápido, cai para o método tradicional com todos os itens
+          if (items.length > 0) {
+            console.log("Usando método tradicional (mais lento) para encontrar o item...");
+            
+            // Find the item - first try by ID
+            let foundItem = items.find(item => item.id === id && (!type || item.type === type));
+            
+            // Se não encontrar pelo ID, tenta pelo nome
+            if (!foundItem) {
+              console.log("Item não encontrado pelo ID, tentando pelo nome...");
+              const decodedId = decodeURIComponent(id || '');
+              foundItem = items.find(item => 
+                (item.name === decodedId || 
+                item.tvgName === decodedId) && 
+                (!type || item.type === type)
+              );
+            }
+            
+            // Se ainda não encontrou, tenta por correspondência parcial do nome
+            if (!foundItem) {
+              console.log("Item não encontrado exatamente, tentando por correspondência parcial...");
+              const decodedId = decodeURIComponent(id || '').toLowerCase();
+              foundItem = items.find(item => 
+                (item.name?.toLowerCase().includes(decodedId) || 
+                item.tvgName?.toLowerCase().includes(decodedId)) && 
+                (!type || item.type === type)
+              );
+            }
+            
+            // Se continua não encontrando, considera qualquer item com URL válida
+            if (!foundItem) {
+              console.log("Tentando encontrar qualquer item com este nome e URL válida...");
+              const decodedId = decodeURIComponent(id || '').toLowerCase();
+              foundItem = items.find(item => 
+                (item.name?.toLowerCase().includes(decodedId) || 
+                item.tvgName?.toLowerCase().includes(decodedId)) && 
+                item.url && item.url.trim() !== ''
+              );
+            }
+            
+            if (foundItem) {
+              handleFoundItem(foundItem);
+            }
+          }
+        } catch (error) {
+          console.error("Erro ao buscar item:", error);
+        } finally {
+          setIsLoading(false);
         }
-        
-        // Definir relacionados com o mesmo tipo
-        const sameTypeItems = items.filter(i => 
-          i.id !== foundItem?.id && 
-          i.type === foundItem?.type
-        );
-        
-        // Definir relacionados com o mesmo gênero se disponível
-        let related: MediaItem[] = [];
-        if (foundItem?.genre) {
-          related = sameTypeItems.filter(i => i.genre === foundItem?.genre);
-        }
-        
-        // Se não tem suficientes do mesmo gênero, adiciona mais do mesmo tipo
-        if (related.length < 10) {
-          const moreItems = sameTypeItems.filter(i => 
-            !foundItem?.genre || i.genre !== foundItem?.genre
-          );
-          
-          related = [...related, ...moreItems].slice(0, 10);
-        }
-        
-        console.log(`Encontrados ${related.length} itens relacionados`);
-        setRelatedItems(related);
-      } else {
-        console.log("Item não encontrado!");
-      }
+      };
+      
+      findItem();
     }
-  }, [loading, items, allItems, contentType, id]);
+  }, [dataLoading, items, allItems, contentType, id, handleFoundItem]);
   
   // Initialize animations
   useEffect(() => {
@@ -392,6 +448,13 @@ const DetailPage: React.FC = () => {
   const handleImageError = () => {
     setImageError(true);
   };
+  
+  // Remover o carregamento automático de conteúdo (autoplay)
+  useEffect(() => {
+    if (item && !dataLoading) {
+      // Não fazer nada aqui - removido o autoplay
+    }
+  }, [item, dataLoading, episodesBySeasons]);
   
   // Prepare player view
   const handlePlay = () => {
@@ -431,8 +494,24 @@ const DetailPage: React.FC = () => {
   // Get episodes if item is a series
   const seriesEpisodes = isSeries && item ? getEpisodesForSeries(item.id) : [];
   
+  // Detectar se é dispositivo mobile
+  useEffect(() => {
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    // Verificar no carregamento
+    checkIfMobile();
+    
+    // Adicionar listener para redimensionamento
+    window.addEventListener('resize', checkIfMobile);
+    
+    // Limpar listener
+    return () => window.removeEventListener('resize', checkIfMobile);
+  }, []);
+  
   // Show loading state
-  if (loading) {
+  if (dataLoading || isLoading) {
     return (
       <DetailContainer>
         <div style={{ textAlign: 'center', padding: '50px 0' }}>
@@ -443,7 +522,7 @@ const DetailPage: React.FC = () => {
   }
   
   // Show error state
-  if (error) {
+  if (dataError) {
     return (
       <DetailContainer>
         <div style={{ textAlign: 'center', padding: '50px 0' }}>
@@ -482,6 +561,21 @@ const DetailPage: React.FC = () => {
       </BackButton>
       
       <MediaContent>
+        {/* No mobile, a imagem é mostrada primeiro, depois os detalhes */}
+        {isMobile && (
+          <MediaInfo>
+            <PosterImage 
+              bgUrl={!imageError ? (item.logo || FALLBACK_IMAGE) : FALLBACK_IMAGE}
+              className={!item.logo || imageError ? 'placeholder' : ''}
+              onError={handleImageError}
+            >
+              {(!item.logo || imageError) && (
+                <div>Sem imagem disponível</div>
+              )}
+            </PosterImage>
+          </MediaInfo>
+        )}
+        
         <div>
           {showPlayer && activeItem && (
             <Modal onClose={handlePlayerClose}>
@@ -493,6 +587,7 @@ const DetailPage: React.FC = () => {
                 episodes={isSeries && item ? seriesEpisodes : []}
                 currentEpisode={activeItem}
                 onEpisodeSelect={handleEpisodeSelect}
+                autoPlay={false}
               />
             </Modal>
           )}
@@ -521,7 +616,7 @@ const DetailPage: React.FC = () => {
               </MetaItem>
             )}
             
-            {item.group && (
+            {!isMobile && item.group && (
               <MetaItem>
                 <span className="icon">🏷️</span>
                 {item.group}
@@ -541,6 +636,7 @@ const DetailPage: React.FC = () => {
               onClick={handlePlay} 
               icon="▶️" 
               variant="primary"
+              style={{ width: isMobile ? '100%' : 'auto' }}
             >
               Assistir Agora
             </Button>
@@ -564,7 +660,7 @@ const DetailPage: React.FC = () => {
                         </EpisodeNumber>
                         <EpisodeInfo>
                           <EpisodeTitle>{episode.name}</EpisodeTitle>
-                          {episode.description && (
+                          {!isMobile && episode.description && (
                             <EpisodeDescription>
                               {episode.description.slice(0, 100)}
                               {episode.description.length > 100 ? '...' : ''}
@@ -581,17 +677,20 @@ const DetailPage: React.FC = () => {
           )}
         </div>
         
-        <MediaInfo>
-          <PosterImage 
-            bgUrl={!imageError ? (item.logo || FALLBACK_IMAGE) : FALLBACK_IMAGE}
-            className={!item.logo || imageError ? 'placeholder' : ''}
-            onError={handleImageError}
-          >
-            {(!item.logo || imageError) && (
-              <div>Sem imagem disponível</div>
-            )}
-          </PosterImage>
-        </MediaInfo>
+        {/* No desktop, a imagem é mostrada ao lado dos detalhes */}
+        {!isMobile && (
+          <MediaInfo>
+            <PosterImage 
+              bgUrl={!imageError ? (item.logo || FALLBACK_IMAGE) : FALLBACK_IMAGE}
+              className={!item.logo || imageError ? 'placeholder' : ''}
+              onError={handleImageError}
+            >
+              {(!item.logo || imageError) && (
+                <div>Sem imagem disponível</div>
+              )}
+            </PosterImage>
+          </MediaInfo>
+        )}
       </MediaContent>
       
       {/* Related content section */}

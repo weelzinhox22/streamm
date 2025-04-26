@@ -9,6 +9,7 @@ import Layout from './components/layout/Layout';
 import GlobalStyles from './styles/globalStyles';
 import theme from './styles/theme';
 import { ContentType } from './types';
+import { preloadM3UCache } from './services/m3uCache';
 
 // ScrollToTop component to reset scroll position on navigation
 const ScrollToTop: React.FC = () => {
@@ -54,6 +55,29 @@ const RouteWrapper: React.FC<{ element: React.ReactNode }> = ({ element }) => {
 };
 
 const App: React.FC = () => {
+  const [darkMode, setDarkMode] = useState(true);
+  
+  // Inicializar o cache de M3U assim que o app carrega
+  useEffect(() => {
+    // Pré-carregar o índice e o cache em segundo plano
+    const preloadCache = async () => {
+      try {
+        console.log('Iniciando pré-carregamento do cache de M3U...');
+        await preloadM3UCache();
+        console.log('Cache de M3U carregado com sucesso!');
+      } catch (error) {
+        console.error('Erro ao pré-carregar cache de M3U:', error);
+      }
+    };
+    
+    preloadCache();
+  }, []);
+  
+  // Toggle dark mode
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+  };
+  
   return (
     <ThemeProvider theme={theme}>
       <GlobalStyles theme={theme} />
