@@ -492,6 +492,256 @@ const EpisodeItem = styled.div`
   }
 `;
 
+// Componentes de carregamento modernos
+const LoadingOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(10, 10, 15, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+`;
+
+const LoadingSpinner = styled.div`
+  width: 80px;
+  height: 80px;
+  position: relative;
+  margin-bottom: 30px;
+  
+  &::before, &::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    border: 4px solid transparent;
+    border-top-color: ${({ theme }) => theme.colors.primary};
+    border-bottom-color: ${({ theme }) => theme.colors.maxPurple};
+    animation: spin 1.5s linear infinite;
+  }
+  
+  &::before {
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+  }
+  
+  &::after {
+    width: 60%;
+    height: 60%;
+    top: 20%;
+    left: 20%;
+    border-top-color: ${({ theme }) => theme.colors.maxPurple};
+    border-bottom-color: ${({ theme }) => theme.colors.primary};
+    animation: spin 1s linear infinite reverse;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
+
+const LoadingText = styled.div`
+  color: ${({ theme }) => theme.colors.text};
+  font-size: 18px;
+  text-align: center;
+  margin-bottom: 20px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  .dots {
+    overflow: hidden;
+    display: inline-flex;
+    margin-left: 4px;
+    
+    &::after {
+      content: '...';
+      animation: dots 1.4s steps(4, end) infinite;
+      width: 0;
+    }
+    
+    @keyframes dots {
+      0%, 20% { width: 0; }
+      40% { width: 3px; }
+      60% { width: 6px; }
+      80%, 100% { width: 9px; }
+    }
+  }
+`;
+
+const LoadingBar = styled.div`
+  width: 300px;
+  max-width: 80%;
+  height: 4px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 10px;
+  
+  .fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(
+      to right,
+      ${({ theme }) => theme.colors.primary},
+      ${({ theme }) => theme.colors.maxPurple}
+    );
+    border-radius: 4px;
+    transition: width 0.5s ease-out;
+  }
+`;
+
+const LoadingPercent = styled.div`
+  font-size: 12px;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  text-align: right;
+  width: 300px;
+  max-width: 80%;
+`;
+
+// O componente de loading que inclui animação
+const Loading: React.FC<{
+  message?: string;
+  progress?: number;
+}> = ({ message = "Carregando...", progress = 0 }) => {
+  const [percent, setPercent] = useState(progress);
+  const fillRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    // Animar a barra
+    if (fillRef.current) {
+      gsap.to(fillRef.current, {
+        width: `${progress}%`,
+        duration: 0.5,
+        ease: "power1.out"
+      });
+    }
+    
+    setPercent(progress);
+  }, [progress]);
+  
+  return (
+    <LoadingOverlay>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+        <LoadingSpinner />
+        <LoadingText>
+          {message}<span className="dots"></span>
+        </LoadingText>
+        <LoadingBar>
+          <div className="fill" ref={fillRef} />
+        </LoadingBar>
+        <LoadingPercent>{percent}%</LoadingPercent>
+      </div>
+    </LoadingOverlay>
+  );
+};
+
+// Componente de loading específico para carregamento de player
+const PlayerLoading: React.FC<{
+  onComplete: () => void;
+  messages?: string[];
+}> = ({ onComplete, messages = [
+  'Preparando sua mídia',
+  'Conectando ao servidor',
+  'Carregando dados',
+  'Finalizando'
+] }) => {
+  const [currentMessage, setCurrentMessage] = useState(messages[0]);
+  const [progress, setProgress] = useState(0);
+  
+  useEffect(() => {
+    let step = 0;
+    const messageCount = messages.length;
+    const increment = 100 / messageCount;
+    
+    const interval = setInterval(() => {
+      if (step < messageCount) {
+        setCurrentMessage(messages[step]);
+        setProgress(Math.min(100, (step + 1) * increment));
+        step++;
+      } else {
+        clearInterval(interval);
+        onComplete();
+      }
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [messages, onComplete]);
+  
+  return <Loading message={currentMessage} progress={progress} />;
+};
+
+// Componente de descrição com skeleton loading
+const DescriptionSkeleton = styled.div`
+  width: 100%;
+  margin-bottom: ${({ theme }) => theme.spacing.xl};
+  
+  .line {
+    height: 16px;
+    margin-bottom: 12px;
+    border-radius: 4px;
+    background: linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0.05) 0%,
+      rgba(255, 255, 255, 0.15) 50%,
+      rgba(255, 255, 255, 0.05) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite linear;
+    
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    
+    &:nth-child(1) { width: 100%; }
+    &:nth-child(2) { width: 95%; }
+    &:nth-child(3) { width: 98%; }
+    &:nth-child(4) { width: 85%; }
+  }
+`;
+
+// Componente SkeletonDescription sem referência a ref
+const SkeletonDescription: React.FC = () => {
+  // Use useEffect para animar diretamente aqui
+  useEffect(() => {
+    const lines = document.querySelectorAll('.skeleton-line');
+    
+    lines.forEach((line, i) => {
+      gsap.to(line, {
+        opacity: gsap.utils.random(0.5, 1),
+        duration: 1,
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut",
+        delay: i * 0.1
+      });
+    });
+  }, []);
+  
+  return (
+    <DescriptionSkeleton>
+      <div className="line skeleton-line"></div>
+      <div className="line skeleton-line"></div>
+      <div className="line skeleton-line"></div>
+      <div className="line skeleton-line"></div>
+    </DescriptionSkeleton>
+  );
+};
+
 // Versão adaptada do findItemFromM3U que retorna undefined em vez de null
 const findItemCompatible = async (searchId: string): Promise<MediaItem | undefined> => {
   try {
@@ -517,29 +767,8 @@ const DetailPage: React.FC = () => {
   const [selectedEpisode, setSelectedEpisode] = useState<MediaItem | null>(null);
   const [relatedItems, setRelatedItems] = useState<MediaItem[]>([]);
   const [isMobile, setIsMobile] = useState(false);
-  
-  useEffect(() => {
-    // Animation setup
-    if (containerRef.current) {
-      gsap.fromTo(
-        containerRef.current,
-        { opacity: 0, y: 30 },
-        { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }
-      );
-    }
-    
-    // Check if mobile
-    const checkIfMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkIfMobile();
-    window.addEventListener('resize', checkIfMobile);
-    
-    return () => {
-      window.removeEventListener('resize', checkIfMobile);
-    };
-  }, []);
+  const [playerLoading, setPlayerLoading] = useState(false);
+  const [loadingDescription, setLoadingDescription] = useState(false);
   
   useEffect(() => {
     if (!id) return;
@@ -622,16 +851,21 @@ const DetailPage: React.FC = () => {
       console.log('Imagem do item:', item.poster || item.logo || item.tvgLogo || 'Sem imagem');
       
       // Buscar informações adicionais se não houver descrição
-      if (!item.description || item.description === 'Sem descrição disponível.') {
+      if (!item.description || 
+          item.description === 'Sem descrição disponível.' ||
+          item.description === 'No description available.') {
         const fetchDescription = async () => {
           try {
+            setLoadingDescription(true);
             const enrichedItem = await enrichMediaItem(item);
             if (enrichedItem.description !== item.description) {
               console.log('Descrição encontrada:', enrichedItem.description);
               setItem(enrichedItem);
             }
+            setLoadingDescription(false);
           } catch (error) {
             console.error('Erro ao buscar descrição:', error);
+            setLoadingDescription(false);
           }
         };
         
@@ -666,11 +900,21 @@ const DetailPage: React.FC = () => {
     }
   };
   
+  // Check if the media is a movie or series
+  const isMovie = item?.type === 'movie';
+  const isSeries = item?.type === 'series';
+  
+  // Get available seasons from episodes
+  const seasons = Object.keys(seasonEpisodes).sort();
+  
+  // Get current season episodes
+  const currentSeasonEpisodes = currentSeason ? seasonEpisodes[currentSeason] || [] : [];
+  
   // Handler functions for media playback
   const handlePlay = (episode?: MediaItem) => {
     if (episode || item) {
       setSelectedEpisode(episode || (item as MediaItem));
-      setShowVideoPlayer(true);
+      setPlayerLoading(true);
     }
   };
   
@@ -682,17 +926,10 @@ const DetailPage: React.FC = () => {
   const handleEpisodeSelect = (episode: MediaItem) => {
     if (episode) {
       setSelectedEpisode(episode);
-      setShowVideoPlayer(true);
+      setPlayerLoading(true);
     }
   };
-  
-  const getEpisodesForSeries = (seriesId: string): MediaItem[] => {
-    return allItems.filter(item => 
-      (item.type === 'series' || item.type === 'episode') && 
-      item.seriesId === seriesId
-    );
-  };
-  
+
   const handleSeasonChange = (season: string) => {
     setCurrentSeason(season);
     
@@ -707,18 +944,13 @@ const DetailPage: React.FC = () => {
     }
   };
   
-  // Check if the media is a movie or series
-  const isMovie = item?.type === 'movie';
-  const isSeries = item?.type === 'series';
-  
-  // Get available seasons from episodes
-  const seasons = Object.keys(seasonEpisodes).sort();
-  
-  // Get current season episodes
-  const currentSeasonEpisodes = currentSeason ? seasonEpisodes[currentSeason] || [] : [];
+  const handlePlayerLoadingComplete = () => {
+    setPlayerLoading(false);
+    setShowVideoPlayer(true);
+  };
   
   if (loading) {
-    return <div>Carregando...</div>;
+    return <Loading message="Carregando conteúdo" progress={50} />;
   }
   
   if (!item) {
@@ -779,9 +1011,13 @@ const DetailPage: React.FC = () => {
               )}
             </MetaInfo>
             
-            <Description>
-              <p>{item.description || 'Sem descrição disponível.'}</p>
-            </Description>
+            {loadingDescription ? (
+              <SkeletonDescription />
+            ) : (
+              <Description>
+                <p>{item.description || 'Sem descrição disponível.'}</p>
+              </Description>
+            )}
             
             <ActionButtons>
               {isMovie && (
@@ -875,6 +1111,31 @@ const DetailPage: React.FC = () => {
           </RelatedContent>
         )}
       </ContentWrapper>
+      
+      {playerLoading && (
+        <PlayerLoading 
+          onComplete={handlePlayerLoadingComplete}
+          messages={
+            selectedEpisode && selectedEpisode.season ?
+            [
+              `Preparando S${selectedEpisode.season}E${selectedEpisode.episode}`,
+              'Conectando ao servidor de séries',
+              'Carregando dados do episódio',
+              'Configurando legendas',
+              'Sincronizando áudio',
+              'Pronto para reprodução'
+            ] :
+            [
+              'Preparando sua mídia',
+              'Conectando ao servidor de streaming',
+              'Carregando dados de vídeo',
+              'Configurando qualidade ideal',
+              'Inicializando player',
+              'Pronto para reprodução'
+            ]
+          }
+        />
+      )}
       
       {showVideoPlayer && selectedEpisode && (
         <Modal onClose={handlePlayerClose} fullWidth>

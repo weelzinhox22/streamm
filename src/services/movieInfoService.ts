@@ -134,46 +134,9 @@ export const enrichMediaItem = async (item: MediaItem): Promise<MediaItem> => {
       if (descricao && descricao.length > 0 && /^[A-Za-z]/.test(descricao) && !descricao.includes("Sem descrição")) {
         console.log(`Traduzindo descrição: "${descricao.substring(0, 50)}..."`);
         
-        // Tradução simples de alguns termos comuns em inglês para português
-        descricao = descricao
-          .replace(/^A young /g, 'Um jovem ')
-          .replace(/^A /g, 'Um ')
-          .replace(/^An /g, 'Um ')
-          .replace(/^The /g, 'O ')
-          .replace(/ the /g, ' o ')
-          .replace(/ a /g, ' um ')
-          .replace(/ an /g, ' um ')
-          .replace(/\bman\b/g, 'homem')
-          .replace(/\bwoman\b/g, 'mulher')
-          .replace(/\bboy\b/g, 'garoto')
-          .replace(/\bgirl\b/g, 'garota')
-          .replace(/\blife\b/g, 'vida')
-          .replace(/\blove\b/g, 'amor')
-          .replace(/\bfamily\b/g, 'família')
-          .replace(/\bfriend\b/g, 'amigo')
-          .replace(/\bfriends\b/g, 'amigos')
-          .replace(/\bmust\b/g, 'deve')
-          .replace(/\bwith\b/g, 'com')
-          .replace(/\bwithout\b/g, 'sem')
-          .replace(/\bhas to\b/g, 'tem que')
-          .replace(/\bwho\b/g, 'que')
-          .replace(/\bwhen\b/g, 'quando')
-          .replace(/\bafter\b/g, 'depois')
-          .replace(/\bbefore\b/g, 'antes')
-          .replace(/\bworld\b/g, 'mundo')
-          .replace(/\bdiscovers\b/g, 'descobre')
-          .replace(/\btries\b/g, 'tenta')
-          .replace(/\battacks\b/g, 'ataca')
-          .replace(/\bsaves\b/g, 'salva')
-          .replace(/\bstruggle\b/g, 'luta')
-          .replace(/\btheir\b/g, 'seus')
-          .replace(/\bhis\b/g, 'seu')
-          .replace(/\bher\b/g, 'sua')
-          .replace(/\bthey\b/g, 'eles')
-          .replace(/\bfind\b/g, 'encontra')
-          .replace(/\bdeal\b/g, 'lidar')
-          .replace(/\bwhile\b/g, 'enquanto');
-          
+        // Tradução mais abrangente do inglês para português
+        descricao = traduzirParaPortugues(descricao);
+        
         console.log(`Descrição traduzida: "${descricao.substring(0, 50)}..."`);
       }
       
@@ -182,7 +145,8 @@ export const enrichMediaItem = async (item: MediaItem): Promise<MediaItem> => {
         ...item,
         description: descricao,
         genre: item.genre || (movieInfo.Genre ? movieInfo.Genre.split(',')[0] : undefined),
-        country: item.country || (movieInfo.Country ? movieInfo.Country.split(',')[0] : undefined)
+        country: item.country || (movieInfo.Country ? movieInfo.Country.split(',')[0] : undefined),
+        year: item.year || movieInfo.Year
       };
       
       console.log(`Item enriquecido com sucesso: ${enrichedItem.name}`);
@@ -200,6 +164,151 @@ export const enrichMediaItem = async (item: MediaItem): Promise<MediaItem> => {
     description: item.description || "Sem descrição disponível."
   };
 };
+
+/**
+ * Função para traduzir texto de inglês para português
+ */
+function traduzirParaPortugues(texto: string): string {
+  // Mapeamento expandido de termos inglês -> português
+  const traducoes: Record<string, string> = {
+    // Artigos e pronomes
+    "^The ": "O ",
+    "^A ": "Um ",
+    "^An ": "Um ",
+    "^A young ": "Um jovem ",
+    " the ": " o ",
+    " a ": " um ",
+    " an ": " um ",
+    " this ": " este ",
+    " these ": " estes ",
+    " those ": " aqueles ",
+    " his ": " seu ",
+    " her ": " sua ",
+    " their ": " seus ",
+    " they ": " eles ",
+    " he ": " ele ",
+    " she ": " ela ",
+    " it ": " isto ",
+    
+    // Substantivos comuns
+    "\\bman\\b": "homem",
+    "\\bmen\\b": "homens",
+    "\\bwoman\\b": "mulher",
+    "\\bwomen\\b": "mulheres",
+    "\\bboy\\b": "garoto",
+    "\\bboys\\b": "garotos",
+    "\\bgirl\\b": "garota",
+    "\\bgirls\\b": "garotas",
+    "\\bchild\\b": "criança",
+    "\\bchildren\\b": "crianças",
+    "\\blife\\b": "vida",
+    "\\bwar\\b": "guerra",
+    "\\bworld\\b": "mundo",
+    "\\bcity\\b": "cidade",
+    "\\btown\\b": "cidade",
+    "\\bvillage\\b": "vila",
+    "\\bfamily\\b": "família",
+    "\\bfriend\\b": "amigo",
+    "\\bfriends\\b": "amigos",
+    "\\blove\\b": "amor",
+    "\\benemy\\b": "inimigo",
+    "\\benemies\\b": "inimigos",
+    "\\bfather\\b": "pai",
+    "\\bmother\\b": "mãe",
+    "\\bbrother\\b": "irmão",
+    "\\bsister\\b": "irmã",
+    "\\bhome\\b": "lar",
+    "\\bhouse\\b": "casa",
+    "\\btime\\b": "tempo",
+    "\\byear\\b": "ano",
+    "\\byears\\b": "anos",
+    "\\bday\\b": "dia",
+    "\\bdays\\b": "dias",
+    "\\bnight\\b": "noite",
+    "\\bmovie\\b": "filme",
+    "\\bfilm\\b": "filme",
+    "\\bseries\\b": "série",
+    
+    // Verbos comuns
+    "\\bmust\\b": "deve",
+    "\\bhas to\\b": "tem que",
+    "\\bfind\\b": "encontrar",
+    "\\bfinds\\b": "encontra",
+    "\\bdiscovers\\b": "descobre",
+    "\\btries\\b": "tenta",
+    "\\btry\\b": "tentar",
+    "\\battacks\\b": "ataca",
+    "\\battack\\b": "atacar",
+    "\\bsaves\\b": "salva",
+    "\\bsave\\b": "salvar",
+    "\\bstruggle\\b": "luta",
+    "\\bstruggles\\b": "luta",
+    "\\bdeal\\b": "lidar",
+    "\\bdeals\\b": "lida",
+    "\\blive\\b": "viver",
+    "\\blives\\b": "vive",
+    "\\bdie\\b": "morrer",
+    "\\bdies\\b": "morre",
+    "\\bfight\\b": "lutar",
+    "\\bfights\\b": "luta",
+    "\\bmeet\\b": "encontrar",
+    "\\bmeets\\b": "encontra",
+    "\\bmake\\b": "fazer",
+    "\\bmakes\\b": "faz",
+    "\\bhelp\\b": "ajudar",
+    "\\bhelps\\b": "ajuda",
+    "\\breturn\\b": "retornar",
+    "\\breturns\\b": "retorna",
+    "\\bface\\b": "enfrentar",
+    "\\bfaces\\b": "enfrenta",
+    "\\bbecome\\b": "tornar-se",
+    "\\bbecomes\\b": "torna-se",
+    "\\bchange\\b": "mudar",
+    "\\bchanges\\b": "muda",
+    "\\brealize\\b": "perceber",
+    "\\brealizes\\b": "percebe",
+    
+    // Preposições e conjunções
+    "\\bwith\\b": "com",
+    "\\bwithout\\b": "sem",
+    "\\bfor\\b": "para",
+    "\\bfrom\\b": "de",
+    "\\bto\\b": "para",
+    "\\bin\\b": "em",
+    "\\bon\\b": "em",
+    "\\bat\\b": "em",
+    "\\bof\\b": "de",
+    "\\bby\\b": "por",
+    "\\babout\\b": "sobre",
+    "\\bthrough\\b": "através",
+    "\\bduring\\b": "durante",
+    "\\bafter\\b": "depois",
+    "\\bbefore\\b": "antes",
+    "\\bwhen\\b": "quando",
+    "\\bwhile\\b": "enquanto",
+    "\\bif\\b": "se",
+    "\\bbecause\\b": "porque",
+    "\\bsince\\b": "desde",
+    "\\buntil\\b": "até",
+    "\\balthough\\b": "embora",
+    "\\bthough\\b": "embora",
+    "\\bhowever\\b": "entretanto",
+    "\\btherefore\\b": "portanto",
+    "\\bconsequently\\b": "consequentemente",
+    "\\bmoreover\\b": "além disso",
+    "\\badditionally\\b": "adicionalmente"
+  };
+  
+  // Aplicar todas as traduções
+  let resultado = texto;
+  
+  for (const [ingles, portugues] of Object.entries(traducoes)) {
+    const regex = new RegExp(ingles, 'g');
+    resultado = resultado.replace(regex, portugues);
+  }
+  
+  return resultado;
+}
 
 // Função para testar a API durante a inicialização
 const testApiKey = async () => {
