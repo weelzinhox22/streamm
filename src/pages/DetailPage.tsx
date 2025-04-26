@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import styled from 'styled-components';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { gsap } from 'gsap';
-import VideoPlayer from '../components/ui/VideoPlayer';
 import Button from '../components/ui/Button';
 import { useM3UData } from '../hooks/useM3UData';
 import { MediaItem } from '../types';
@@ -200,12 +199,6 @@ const PlayButton = styled(Button)`
   &:active {
     transform: translateY(-1px);
   }
-`;
-
-const RelatedContent = styled.div`
-  margin-top: ${({ theme }) => theme.spacing.xxl};
-  padding-top: ${({ theme }) => theme.spacing.xl};
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
 `;
 
 const PosterImage = styled.div<{ bgUrl?: string }>`
@@ -753,6 +746,10 @@ const findItemCompatible = async (searchId: string): Promise<MediaItem | undefin
   }
 };
 
+// Lazy load heavy components
+const VideoPlayer = lazy(() => import('../components/ui/VideoPlayer'));
+const RelatedContent = lazy(() => import('../components/RelatedContent'));
+
 const DetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -1102,13 +1099,9 @@ const DetailPage: React.FC = () => {
         </MediaContent>
         
         {relatedItems.length > 0 && (
-          <RelatedContent>
-            <SectionTitle>Conteúdo Relacionado</SectionTitle>
-            <MediaRow 
-              title={`Mais de ${item.category}`} 
-              items={relatedItems} 
-            />
-          </RelatedContent>
+          <Suspense fallback={<LoadingContainer><div>Loading related content...</div></LoadingContainer>}>
+            <RelatedContent items={relatedItems} onItemClick={handleEpisodeSelect} />
+          </Suspense>
         )}
       </ContentWrapper>
       
@@ -1139,15 +1132,32 @@ const DetailPage: React.FC = () => {
       
       {showVideoPlayer && selectedEpisode && (
         <Modal onClose={handlePlayerClose} fullWidth>
-          <VideoPlayer 
-            url={selectedEpisode.url} 
-            title={selectedEpisode.name} 
-            onClose={handlePlayerClose}
-          />
+          <Suspense fallback={<LoadingContainer><div>Loading player...</div></LoadingContainer>}>
+            <VideoPlayer
+              item={selectedEpisode}
+              url={selectedEpisode.url}
+              title={selectedEpisode.name}
+              autoPlay={true}
+              onClose={handlePlayerClose}
+              onEpisodeSelect={handleEpisodeSelect}
+              episodes={episodes}
+              currentEpisode={selectedEpisode}
+            />
+          </Suspense>
         </Modal>
       )}
     </DetailContainer>
   );
 };
+
+const LoadingContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 200px;
+  color: white;
+  font-size: 18px;
+`;
 
 export default DetailPage; 

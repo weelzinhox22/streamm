@@ -1,6 +1,112 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { loadM3UData, organizeSeriesContent, parseM3UPlaylist, fetchM3UPlaylist } from '../services/m3uService';
 import { MediaItem, Category, Genre, FeaturedContent, AppState } from '../types';
+import debounce from 'lodash/debounce';
+
+// Utility function to create a search index
+const createSearchIndex = (items: MediaItem[]) => {
+  const index: Record<string, Set<string>> = {};
+  
+  items.forEach(item => {
+    const id = item.id;
+    
+    // Index item name words
+    if (item.name) {
+      const words = item.name.toLowerCase().split(/\s+/);
+      words.forEach(word => {
+        if (word.length >= 2) {
+          if (!index[word]) {
+            index[word] = new Set();
+          }
+          index[word].add(id);
+        }
+      });
+    }
+    
+    // Index other relevant fields
+    const fieldsToIndex = [
+      item.tvgName,
+      item.genre,
+      item.group
+    ];
+    
+    fieldsToIndex.forEach(field => {
+      if (field) {
+        const words = field.toLowerCase().split(/\s+/);
+        words.forEach(word => {
+          if (word.length >= 2) {
+            if (!index[word]) {
+              index[word] = new Set();
+            }
+            index[word].add(id);
+          }
+        });
+      }
+    });
+  });
+  
+  return index;
+};
+
+// Search function using the index
+const searchWithIndex = (items: MediaItem[], term: string, searchIndex: Record<string, Set<string>>) => {
+  if (!term.trim()) return [];
+  
+  const words = term.toLowerCase().trim().split(/\s+/);
+  if (words.length === 0) return [];
+  
+  // For single-word searches, get direct matches from index
+  if (words.length === 1) {
+    const word = words[0];
+    const matchIds = new Set<string>();
+    
+    // Look for exact matches in the index
+    if (searchIndex[word]) {
+      searchIndex[word].forEach(id => matchIds.add(id));
+    }
+    
+    // Look for partial matches in the index
+    Object.entries(searchIndex).forEach(([indexWord, ids]) => {
+      if (indexWord.includes(word)) {
+        ids.forEach(id => matchIds.add(id));
+      }
+    });
+    
+    // Return items that match the IDs
+    return items.filter(item => matchIds.has(item.id));
+  }
+  
+  // For multi-word searches, find items that match all words
+  const matchesByWord = words.map(word => {
+    const wordMatches = new Set<string>();
+    
+    // Check for exact word matches
+    if (searchIndex[word]) {
+      searchIndex[word].forEach(id => wordMatches.add(id));
+    }
+    
+    // Check for partial matches
+    Object.entries(searchIndex).forEach(([indexWord, ids]) => {
+      if (indexWord.includes(word)) {
+        ids.forEach(id => wordMatches.add(id));
+      }
+    });
+    
+    return wordMatches;
+  });
+  
+  // Find intersection of all word matches
+  const finalMatches = new Set<string>(matchesByWord[0]);
+  for (let i = 1; i < matchesByWord.length; i++) {
+    finalMatches.forEach(id => {
+      if (!matchesByWord[i].has(id)) {
+        finalMatches.delete(id);
+      }
+    });
+  }
+  
+  return items.filter(item => finalMatches.has(item.id));
+};
 
 interface M3UDataState {
   items: MediaItem[];
@@ -35,6 +141,9 @@ const initialState: AppState = {
 export const useM3UData = () => {
   const [state, setState] = useState<AppState>(initialState);
   const [filteredItems, setFilteredItems] = useState<MediaItem[]>([]);
+  const [searchIndex, setSearchIndex] = useState<Record<string, Set<string>>>({});
+  const [indexReady, setIndexReady] = useState(false);
+  const [searchPerformance, setSearchPerformance] = useState({ time: 0, count: 0 });
   
   // Function to organize content by genre
   const organizeContentByGenre = useCallback((items: MediaItem[]): Record<string, Record<string, MediaItem[]>> => {
@@ -126,6 +235,25 @@ export const useM3UData = () => {
     return byGenre;
   }, []);
   
+  // Build search index when items are loaded
+  useEffect(() => {
+    if (state.allItems.length > 0 && !indexReady) {
+      console.log("Building search index for", state.allItems.length, "items");
+      const startTime = performance.now();
+      
+      // Run in a Worker-like pattern to avoid blocking the UI
+      setTimeout(() => {
+        const index = createSearchIndex(state.allItems);
+        setSearchIndex(index);
+        setIndexReady(true);
+        
+        const endTime = performance.now();
+        console.log(`Search index built in ${endTime - startTime}ms`);
+        console.log(`Index contains ${Object.keys(index).length} unique terms`);
+      }, 100);
+    }
+  }, [state.allItems, indexReady]);
+  
   // Fetch all data function
   const fetchData = useCallback(async () => {
     try {
@@ -146,6 +274,9 @@ export const useM3UData = () => {
         error: null
       });
       setFilteredItems(result.items);
+      
+      // Reset index status to trigger rebuild
+      setIndexReady(false);
     } catch (error) {
       console.error('Error fetching data:', error);
       setState(prev => ({
@@ -166,58 +297,89 @@ export const useM3UData = () => {
     fetchData();
   }, [fetchData]);
 
-  // Search functionality
+  // Debounced search function to improve performance
+  const debouncedSearch = useRef(
+    debounce(async (term: string) => {
+      if (!term.trim()) {
+        setState(prev => ({ ...prev, searchResults: [] }));
+        return;
+      }
+      
+      try {
+        const startTime = performance.now();
+        let results: MediaItem[] = [];
+        
+        // Use index-based search if index is ready
+        if (indexReady) {
+          results = searchWithIndex(state.allItems, term, searchIndex);
+        } else {
+          // Fallback to traditional search
+          const lowerTerm = term.toLowerCase();
+          results = state.allItems.filter(item => 
+            (item.name && item.name.toLowerCase().includes(lowerTerm)) ||
+            (item.tvgName && item.tvgName.toLowerCase().includes(lowerTerm)) ||
+            (item.genre && item.genre.toLowerCase().includes(lowerTerm)) ||
+            (item.group && item.group.toLowerCase().includes(lowerTerm))
+          );
+        }
+        
+        const endTime = performance.now();
+        const searchTime = endTime - startTime;
+        
+        setSearchPerformance({
+          time: searchTime,
+          count: results.length
+        });
+        
+        console.log(`Pesquisa por "${term}" encontrou ${results.length} itens em ${searchTime.toFixed(2)}ms`);
+        
+        setState(prev => ({ ...prev, searchResults: results }));
+      } catch (error) {
+        console.error('Error searching items:', error);
+        setState(prev => ({
+          ...prev,
+          error: error instanceof Error ? error : new Error('Erro ao pesquisar')
+        }));
+      }
+    }, 300)
+  ).current;
+
+  // Search functionality with improved performance
   const setSearchTerm = useCallback(async (term: string) => {
     setState(prev => ({ ...prev, searchTerm: term }));
-    
-    if (!term.trim()) {
-      setState(prev => ({ ...prev, searchResults: [] }));
-      return;
-    }
-    
-    try {
-      // Simple search through items
-      const lowerTerm = term.toLowerCase();
-      const results = state.allItems.filter(item => 
-        (item.name && item.name.toLowerCase().includes(lowerTerm)) ||
-        (item.tvgName && item.tvgName.toLowerCase().includes(lowerTerm)) ||
-        (item.genre && item.genre.toLowerCase().includes(lowerTerm)) ||
-        (item.group && item.group.toLowerCase().includes(lowerTerm))
-      );
-      setState(prev => ({ ...prev, searchResults: results }));
-    } catch (error) {
-      console.error('Error searching items:', error);
-      setState(prev => ({
-        ...prev,
-        error: error instanceof Error ? error : new Error('Erro ao pesquisar')
-      }));
-    }
-  }, [state.allItems]);
+    debouncedSearch(term);
+  }, [debouncedSearch]);
   
-  // Filter items based on search term
-  useEffect(() => {
+  // Filter items based on search term - using memoization for better performance
+  const getFilteredItems = useMemo(() => {
     if (!state.searchTerm.trim()) {
-      setFilteredItems(state.items);
-      return;
+      return state.items;
+    }
+    
+    if (state.searchResults.length > 0) {
+      return state.searchResults;
     }
     
     const lowerSearchTerm = state.searchTerm.toLowerCase();
-    const filtered = state.items.filter(item => 
+    return state.items.filter(item => 
       (item.name && item.name.toLowerCase().includes(lowerSearchTerm)) ||
       (item.tvgName && item.tvgName.toLowerCase().includes(lowerSearchTerm)) ||
       (item.genre && item.genre.toLowerCase().includes(lowerSearchTerm)) ||
       (item.group && item.group.toLowerCase().includes(lowerSearchTerm))
     );
-    
-    console.log(`Pesquisa por "${state.searchTerm}" encontrou ${filtered.length} itens`);
-    setFilteredItems(filtered);
-  }, [state.searchTerm, state.items]);
+  }, [state.searchTerm, state.items, state.searchResults]);
+  
+  // Update filtered items when the memoized value changes
+  useEffect(() => {
+    setFilteredItems(getFilteredItems);
+  }, [getFilteredItems]);
   
   return {
     ...state,
     setSearchTerm,
     filteredItems,
     refreshData,
+    searchPerformance,
     
     // Helper function to get pagination
     getPaginatedItems: (items: MediaItem[], page: number, itemsPerPage: number = 30) => {
