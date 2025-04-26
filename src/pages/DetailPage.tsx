@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styled from 'styled-components';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { gsap } from 'gsap';
@@ -10,25 +10,89 @@ import { getSeriesEpisodes, getEpisodesBySeasons } from '../services/m3uService'
 import Modal from '../components/ui/Modal';
 import MediaRow from '../components/ui/MediaRow';
 import { findItemFromM3U } from '../services/m3uCache';
+import { enrichMediaItem } from '../services/movieInfoService';
 
+// Componentes estilizados melhorados
 const DetailContainer = styled.div`
   padding: ${({ theme }) => `${theme.spacing.xl} 0`};
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 400px;
+    background: linear-gradient(to bottom, 
+      ${({ theme }) => theme.colors.backgroundDark}00,
+      ${({ theme }) => theme.colors.background}
+    );
+    z-index: 0;
+    pointer-events: none;
+  }
+`;
+
+const ContentWrapper = styled.div`
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 ${({ theme }) => theme.spacing.md};
+  
+  @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
+    padding: 0 ${({ theme }) => theme.spacing.sm};
+  }
+`;
+
+const BackdropImage = styled.div<{ bgUrl?: string }>`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 70vh;
+  background-image: ${({ bgUrl }) => bgUrl ? `url(${bgUrl})` : 'none'};
+  background-size: cover;
+  background-position: center top;
+  opacity: 0.15;
+  filter: blur(15px);
+  z-index: 0;
+  pointer-events: none;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 70%;
+    background: linear-gradient(to bottom, 
+      ${({ theme }) => theme.colors.background}00,
+      ${({ theme }) => theme.colors.background}
+    );
+  }
 `;
 
 const BackButton = styled.button`
-  background: none;
-  border: none;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50px;
   color: ${({ theme }) => theme.colors.textSecondary};
-  font-size: 1rem;
+  font-size: 0.9rem;
   cursor: pointer;
   display: flex;
   align-items: center;
-  margin-bottom: ${({ theme }) => theme.spacing.md};
-  padding: 0;
-  transition: color 0.2s ease;
+  margin-bottom: ${({ theme }) => theme.spacing.lg};
+  padding: 8px 16px;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
   
   &:hover {
     color: ${({ theme }) => theme.colors.primary};
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateX(-3px);
   }
   
   .icon {
@@ -39,7 +103,7 @@ const BackButton = styled.button`
 const MediaContent = styled.div`
   display: grid;
   grid-template-columns: 1fr 350px;
-  grid-gap: ${({ theme }) => theme.spacing.xl};
+  grid-gap: ${({ theme }) => theme.spacing.xxl};
   margin-bottom: ${({ theme }) => theme.spacing.xxl};
   
   @media (max-width: ${({ theme }) => theme.breakpoints.lg}) {
@@ -60,11 +124,19 @@ const MediaInfo = styled.div`
 `;
 
 const Title = styled.h1`
-  font-size: 2.5rem;
+  font-size: 3rem;
   margin-bottom: ${({ theme }) => theme.spacing.md};
+  background: linear-gradient(to right, 
+    ${({ theme }) => theme.colors.primary}, 
+    ${({ theme }) => theme.colors.text}
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 700;
+  line-height: 1.2;
   
   @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
-    font-size: 1.75rem;
+    font-size: 2rem;
     margin-bottom: ${({ theme }) => theme.spacing.sm};
   }
 `;
@@ -81,6 +153,11 @@ const MetaItem = styled.div`
   align-items: center;
   color: ${({ theme }) => theme.colors.textSecondary};
   font-size: 0.875rem;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 50px;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
   
   .icon {
     margin-right: ${({ theme }) => theme.spacing.xs};
@@ -90,21 +167,50 @@ const MetaItem = styled.div`
 
 const Description = styled.div`
   margin-bottom: ${({ theme }) => theme.spacing.xl};
-  line-height: 1.6;
+  line-height: 1.8;
   color: ${({ theme }) => theme.colors.text};
+  font-size: 1.05rem;
   
   p {
     margin-bottom: ${({ theme }) => theme.spacing.md};
   }
 `;
 
+const ActionButtons = styled.div`
+  display: flex;
+  gap: ${({ theme }) => theme.spacing.md};
+  margin-bottom: ${({ theme }) => theme.spacing.xl};
+  
+  @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
+    flex-direction: column;
+  }
+`;
+
+const PlayButton = styled(Button)`
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+  }
+  
+  &:active {
+    transform: translateY(-1px);
+  }
+`;
+
 const RelatedContent = styled.div`
   margin-top: ${({ theme }) => theme.spacing.xxl};
+  padding-top: ${({ theme }) => theme.spacing.xl};
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 `;
 
 const PosterImage = styled.div<{ bgUrl?: string }>`
   width: 100%;
-  border-radius: ${({ theme }) => theme.borderRadius.md};
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
   overflow: hidden;
   background-color: ${({ theme }) => theme.colors.backgroundLight};
   box-shadow: ${({ theme }) => theme.shadows.medium};
@@ -112,6 +218,23 @@ const PosterImage = styled.div<{ bgUrl?: string }>`
   background-image: ${({ bgUrl }) => bgUrl ? `url(${bgUrl})` : 'none'};
   background-size: cover;
   background-position: center;
+  position: relative;
+  transform: translateY(0);
+  transition: transform 0.5s ease, box-shadow 0.5s ease;
+  
+  &:hover {
+    transform: translateY(-10px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  }
+  
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: ${({ theme }) => theme.borderRadius.lg};
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+    pointer-events: none;
+  }
   
   &.placeholder {
     display: flex;
@@ -131,11 +254,16 @@ const NotFound = styled.div`
   h2 {
     margin-bottom: ${({ theme }) => theme.spacing.lg};
     color: ${({ theme }) => theme.colors.error};
+    font-size: 2rem;
   }
   
   p {
     margin-bottom: ${({ theme }) => theme.spacing.xl};
     color: ${({ theme }) => theme.colors.textSecondary};
+    font-size: 1.1rem;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
   }
 `;
 
@@ -144,15 +272,52 @@ const FALLBACK_IMAGE = 'https://via.placeholder.com/300x450?text=Sem+Imagem';
 
 const SeasonSelector = styled.div`
   margin-bottom: ${({ theme }) => theme.spacing.lg};
+  display: flex;
+  gap: ${({ theme }) => theme.spacing.sm};
+  flex-wrap: wrap;
+`;
+
+const SeasonButton = styled.button<{ active: boolean }>`
+  background: ${({ active, theme }) => active ? theme.colors.primary : 'transparent'};
+  color: ${({ active, theme }) => active ? theme.colors.text : theme.colors.textSecondary};
+  padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.md}`};
+  border: 1px solid ${({ active, theme }) => active ? theme.colors.primary : theme.colors.border};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  font-size: 14px;
+  margin-right: ${({ theme }) => theme.spacing.sm};
+  margin-bottom: ${({ theme }) => theme.spacing.sm};
+  cursor: pointer;
+  transition: all ${({ theme }) => theme.transitions.fast};
+  
+  &:hover {
+    background: ${({ active, theme }) => active ? theme.colors.secondary : theme.colors.backgroundLight};
+  }
+  
+  @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
+    font-size: 12px;
+    padding: ${({ theme }) => `${theme.spacing.xs} ${theme.spacing.sm}`};
+  }
 `;
 
 const SeasonTitle = styled.h3`
   margin-bottom: ${({ theme }) => theme.spacing.md};
-  font-size: 1.2rem;
+  font-size: 1.4rem;
   color: ${({ theme }) => theme.colors.primary};
+  display: flex;
+  align-items: center;
+  
+  &::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 24px;
+    background: linear-gradient(to bottom, ${({ theme }) => theme.colors.primary}, ${({ theme }) => theme.colors.maxPurple});
+    margin-right: ${({ theme }) => theme.spacing.sm};
+    border-radius: 2px;
+  }
   
   @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
-    font-size: 1.1rem;
+    font-size: 1.2rem;
     margin-bottom: ${({ theme }) => theme.spacing.sm};
     padding-left: ${({ theme }) => theme.spacing.sm};
   }
@@ -170,15 +335,19 @@ const EpisodesList = styled.div`
 `;
 
 const EpisodeCard = styled.div`
-  background-color: ${({ theme }) => theme.colors.backgroundLight};
+  background-color: rgba(30, 30, 40, 0.4);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-radius: ${({ theme }) => theme.borderRadius.md};
   overflow: hidden;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.05);
   
   &:hover {
-    transform: translateY(-3px);
+    transform: translateY(-5px);
     box-shadow: ${({ theme }) => theme.shadows.medium};
+    border-color: rgba(255, 255, 255, 0.1);
   }
 `;
 
@@ -192,14 +361,49 @@ const EpisodeImage = styled.div<{ bgUrl?: string }>`
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  overflow: hidden;
   
-  .play-icon {
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, 
+      transparent 50%,
+      rgba(0, 0, 0, 0.7) 100%
+    );
+    z-index: 1;
     opacity: 0.7;
-    transition: opacity 0.2s ease;
+    transition: opacity 0.3s ease;
   }
   
-  &:hover .play-icon {
-    opacity: 1;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: ${({ theme }) => theme.colors.primary};
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 0;
+  }
+  
+  .play-icon {
+    position: relative;
+    z-index: 2;
+    opacity: 0.7;
+    transition: all 0.3s ease;
+    transform: scale(1);
+  }
+  
+  ${EpisodeCard}:hover & {
+    &::after {
+      opacity: 0.2;
+    }
+    
+    .play-icon {
+      opacity: 1;
+      transform: scale(1.1);
+    }
   }
 `;
 
@@ -210,11 +414,28 @@ const EpisodeInfo = styled.div`
 const EpisodeTitle = styled.h4`
   font-size: 1rem;
   margin-bottom: ${({ theme }) => theme.spacing.xs};
+  transition: color 0.3s ease;
+  
+  ${EpisodeCard}:hover & {
+    color: ${({ theme }) => theme.colors.primary};
+  }
 `;
 
 const EpisodeNumber = styled.div`
   font-size: 0.875rem;
   color: ${({ theme }) => theme.colors.textSecondary};
+  display: flex;
+  align-items: center;
+  
+  &::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: ${({ theme }) => theme.colors.primary};
+    margin-right: ${({ theme }) => theme.spacing.xs};
+  }
 `;
 
 const SeasonsContainer = styled.div`
@@ -227,478 +448,442 @@ const SeasonsContainer = styled.div`
 
 const SectionTitle = styled.h2`
   margin-bottom: ${({ theme }) => theme.spacing.md};
-  font-size: 1.2rem;
-  color: ${({ theme }) => theme.colors.primary};
+  font-size: 1.5rem;
+  color: ${({ theme }) => theme.colors.text};
+  position: relative;
+  padding-bottom: ${({ theme }) => theme.spacing.sm};
+  
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(to right, ${({ theme }) => theme.colors.primary}, ${({ theme }) => theme.colors.maxPurple});
+    border-radius: 3px;
+  }
 `;
 
 const SeasonSection = styled.div`
-  margin-bottom: ${({ theme }) => theme.spacing.lg};
+  margin-bottom: ${({ theme }) => theme.spacing.xl};
+  animation: fadeIn 0.5s ease forwards;
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 `;
 
 const EpisodeItem = styled.div`
-  background-color: ${({ theme }) => theme.colors.backgroundLight};
+  background-color: rgba(30, 30, 40, 0.4);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-radius: ${({ theme }) => theme.borderRadius.md};
   overflow: hidden;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.05);
   
   &:hover {
-    transform: translateY(-3px);
+    transform: translateY(-5px);
     box-shadow: ${({ theme }) => theme.shadows.medium};
+    border-color: rgba(255, 255, 255, 0.1);
   }
 `;
 
-const EpisodeDescription = styled.div`
-  margin-bottom: ${({ theme }) => theme.spacing.md};
-  line-height: 1.6;
-  color: ${({ theme }) => theme.colors.textSecondary};
-`;
-
-const PlayButton = styled.div`
-  background: none;
-  border: none;
-  color: ${({ theme }) => theme.colors.primary};
-  font-size: 1.5rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 0;
-  transition: color 0.2s ease;
-  
-  @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
-    padding: 8px;
-    border-radius: 50%;
-    background-color: ${({ theme }) => theme.colors.primary}22;
+// Versão adaptada do findItemFromM3U que retorna undefined em vez de null
+const findItemCompatible = async (searchId: string): Promise<MediaItem | undefined> => {
+  try {
+    const result = await findItemFromM3U(searchId);
+    return result || undefined;
+  } catch (error) {
+    console.error("Erro ao buscar item:", error);
+    return undefined;
   }
-  
-  &:hover {
-    color: ${({ theme }) => theme.colors.primary};
-  }
-`;
+};
 
 const DetailPage: React.FC = () => {
-  const { contentType, id } = useParams<{ contentType: string; id: string }>();
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { allItems, categories } = useM3UData();
   const [item, setItem] = useState<MediaItem | null>(null);
-  const [relatedItems, setRelatedItems] = useState<MediaItem[]>([]);
-  const [showPlayer, setShowPlayer] = useState(false);
-  const [imageError, setImageError] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [episodes, setEpisodes] = useState<MediaItem[]>([]);
-  const [episodesBySeasons, setEpisodesBySeasons] = useState<Record<string, MediaItem[]>>({});
+  const [seasonEpisodes, setSeasonEpisodes] = useState<{ [key: string]: MediaItem[] }>({});
+  const [currentSeason, setCurrentSeason] = useState<string | null>(null);
   const [selectedEpisode, setSelectedEpisode] = useState<MediaItem | null>(null);
-  const [activeItem, setActiveItem] = useState<MediaItem | null>(null);
-  const [isSeries, setIsSeries] = useState(false);
-  const [autoPlayEnabled, setAutoPlayEnabled] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [relatedItems, setRelatedItems] = useState<MediaItem[]>([]);
   const [isMobile, setIsMobile] = useState(false);
   
-  const { 
-    items,
-    allItems, 
-    loading: dataLoading, 
-    error: dataError 
-  } = useM3UData();
-  
-  const navigate = useNavigate();
-  
-  // Função para processar um item encontrado
-  const handleFoundItem = useCallback((foundItem: MediaItem) => {
-    console.log("Item encontrado:", foundItem);
-    setItem(foundItem);
-    
-    // Check if it's a series item with empty URL (parent series)
-    if (foundItem.type === 'series' && (!foundItem.url || foundItem.url === '')) {
-      console.log("Encontrando episódios para a série:", foundItem.id);
-      
-      // Use allItems to get episodes
-      const seriesEpisodes = getSeriesEpisodes(allItems || [], foundItem.id);
-      setEpisodes(seriesEpisodes);
-      
-      // Group episodes by season
-      const seasonEpisodes = getEpisodesBySeasons(allItems || [], foundItem.id);
-      setEpisodesBySeasons(seasonEpisodes);
-      
-      console.log(`Encontrados ${seriesEpisodes.length} episódios em ${Object.keys(seasonEpisodes).length} temporadas`);
-      setIsSeries(true);
-    }
-    
-    // Definir relacionados com o mesmo tipo (usando apenas o que já está carregado)
-    const sameTypeItems = items.filter(i => 
-      i.id !== foundItem?.id && 
-      i.type === foundItem?.type
-    );
-    
-    // Definir relacionados com o mesmo gênero se disponível
-    let related: MediaItem[] = [];
-    if (foundItem?.genre) {
-      related = sameTypeItems.filter(i => i.genre === foundItem?.genre);
-    }
-    
-    // Se não tem suficientes do mesmo gênero, adiciona mais do mesmo tipo
-    if (related.length < 10) {
-      const moreItems = sameTypeItems.filter(i => 
-        !foundItem?.genre || i.genre !== foundItem?.genre
-      );
-      
-      related = [...related, ...moreItems].slice(0, 10);
-    }
-    
-    console.log(`Encontrados ${related.length} itens relacionados`);
-    setRelatedItems(related);
-  }, [items, allItems]);
-  
-  // Find the item and related items
   useEffect(() => {
-    if (!dataLoading) {
-      setIsLoading(true);
-      console.log(`Procurando item: tipo=${contentType}, id=${id}`);
-      
-      // Clean the contentType (remove trailing 's' if any)
-      const type = contentType?.endsWith('s') 
-        ? contentType.slice(0, -1) as 'movie' | 'series' | 'channel'
-        : (contentType as 'movie' | 'series' | 'channel');
-      
-      const findItem = async () => {
-        try {
-          // Primeiro tentar encontrar diretamente pelo ID/nome no cache para otimizar
-          if (id) {
-            const decodedId = decodeURIComponent(id || '');
-            const directItem = await findItemFromM3U(decodedId, type);
+    // Animation setup
+    if (containerRef.current) {
+      gsap.fromTo(
+        containerRef.current,
+        { opacity: 0, y: 30 },
+        { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }
+      );
+    }
+    
+    // Check if mobile
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkIfMobile();
+    window.addEventListener('resize', checkIfMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkIfMobile);
+    };
+  }, []);
+  
+  useEffect(() => {
+    if (!id) return;
+    
+    const findItem = async () => {
+      setLoading(true);
+      try {
+        console.log("Procurando item com ID:", id);
+        
+        // Método 1: Tenta encontrar diretamente na lista allItems
+        let foundItem = allItems.find(item => 
+          item.id === id || 
+          item.id.includes(id) || 
+          id.includes(item.id) ||
+          item.name.toLowerCase() === id.toLowerCase() ||
+          item.name.toLowerCase().includes(id.toLowerCase())
+        );
+        
+        if (foundItem) {
+          console.log("Item encontrado na lista allItems:", foundItem.name);
+        } else {
+          // Método 2: Tenta buscar via findItemCompatible
+          console.log("Tentando buscar via findItemFromM3U");
+          foundItem = await findItemCompatible(id);
+        }
+        
+        if (foundItem) {
+          console.log("Item encontrado:", foundItem);
+          setItem(foundItem);
+          
+          // Garantir que foundItem está definido para o TypeScript
+          const item = foundItem; // Esta atribuição ajuda o TypeScript a inferir o tipo
+          
+          // Se é uma série, busca episódios
+          if (item.type === 'series') {
+            const allEpisodes = getSeriesEpisodes(allItems, item.seriesId || item.id);
+            setEpisodes(allEpisodes);
             
-            if (directItem) {
-              console.log("Item encontrado rapidamente através do cache:", directItem);
-              handleFoundItem(directItem);
-              setIsLoading(false);
-              return;
-            }
+            // Agrupar episódios por temporada
+            const episodesBySeason = getEpisodesBySeasons(allEpisodes, item.seriesId || item.id);
+            setSeasonEpisodes(episodesBySeason);
+            
+            // Definir temporada atual (primeira temporada ou S01)
+            const seasons = Object.keys(episodesBySeason);
+            setCurrentSeason(seasons.length > 0 ? seasons[0] : null);
           }
           
-          // Se não encontrou pelo método rápido, cai para o método tradicional com todos os itens
-          if (items.length > 0) {
-            console.log("Usando método tradicional (mais lento) para encontrar o item...");
-            
-            // Find the item - first try by ID
-            let foundItem = items.find(item => item.id === id && (!type || item.type === type));
-            
-            // Se não encontrar pelo ID, tenta pelo nome
-            if (!foundItem) {
-              console.log("Item não encontrado pelo ID, tentando pelo nome...");
-              const decodedId = decodeURIComponent(id || '');
-              foundItem = items.find(item => 
-                (item.name === decodedId || 
-                item.tvgName === decodedId) && 
-                (!type || item.type === type)
-              );
-            }
-            
-            // Se ainda não encontrou, tenta por correspondência parcial do nome
-            if (!foundItem) {
-              console.log("Item não encontrado exatamente, tentando por correspondência parcial...");
-              const decodedId = decodeURIComponent(id || '').toLowerCase();
-              foundItem = items.find(item => 
-                (item.name?.toLowerCase().includes(decodedId) || 
-                item.tvgName?.toLowerCase().includes(decodedId)) && 
-                (!type || item.type === type)
-              );
-            }
-            
-            // Se continua não encontrando, considera qualquer item com URL válida
-            if (!foundItem) {
-              console.log("Tentando encontrar qualquer item com este nome e URL válida...");
-              const decodedId = decodeURIComponent(id || '').toLowerCase();
-              foundItem = items.find(item => 
-                (item.name?.toLowerCase().includes(decodedId) || 
-                item.tvgName?.toLowerCase().includes(decodedId)) && 
-                item.url && item.url.trim() !== ''
-              );
-            }
-            
-            if (foundItem) {
-              handleFoundItem(foundItem);
-            }
+          // Obter itens relacionados (itens na mesma categoria)
+          const category = item.category || '';
+          let categoryItems = allItems.filter(i => 
+            i.category === category && 
+            i.id !== item.id
+          );
+          
+          // Se não encontrar itens relacionados pela categoria, tenta pelo tipo
+          if (categoryItems.length === 0) {
+            categoryItems = allItems.filter(i => 
+              i.type === item.type && 
+              i.id !== item.id
+            ).slice(0, 10);
           }
-        } catch (error) {
-          console.error("Erro ao buscar item:", error);
-        } finally {
-          setIsLoading(false);
+          
+          setRelatedItems(categoryItems);
+        } else {
+          console.error('Item não encontrado:', id);
         }
-      };
-      
-      findItem();
-    }
-  }, [dataLoading, items, allItems, contentType, id, handleFoundItem]);
+      } catch (error) {
+        console.error('Erro ao buscar o item:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    findItem();
+  }, [id, allItems]);
   
-  // Initialize animations
   useEffect(() => {
     if (item) {
-      gsap.fromTo(
-        '.media-detail',
-        { opacity: 0, y: 30 },
-        { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }
-      );
+      console.log('Item carregado:', item);
+      console.log('Imagem do item:', item.poster || item.logo || item.tvgLogo || 'Sem imagem');
+      
+      // Buscar informações adicionais se não houver descrição
+      if (!item.description || item.description === 'Sem descrição disponível.') {
+        const fetchDescription = async () => {
+          try {
+            const enrichedItem = await enrichMediaItem(item);
+            if (enrichedItem.description !== item.description) {
+              console.log('Descrição encontrada:', enrichedItem.description);
+              setItem(enrichedItem);
+            }
+          } catch (error) {
+            console.error('Erro ao buscar descrição:', error);
+          }
+        };
+        
+        fetchDescription();
+      }
     }
   }, [item]);
   
-  // Go back function
+  // Go back handler with animation
   const goBack = () => {
-    navigate(-1);
-  };
-  
-  // Handle image loading error
-  const handleImageError = () => {
-    setImageError(true);
-  };
-  
-  // Remover o carregamento automático de conteúdo (autoplay)
-  useEffect(() => {
-    if (item && !dataLoading) {
-      // Não fazer nada aqui - removido o autoplay
+    if (containerRef.current) {
+      gsap.to(containerRef.current, {
+        opacity: 0, 
+        y: 30, 
+        duration: 0.5, 
+        ease: "power3.in",
+        onComplete: () => {
+          navigate(-1);
+        }
+      });
+    } else {
+      navigate(-1);
     }
-  }, [item, dataLoading, episodesBySeasons]);
-  
-  // Prepare player view
-  const handlePlay = () => {
-    setActiveItem(item);
-    setShowPlayer(true);
   };
   
-  // Handle player close
+  const handleImageError = () => {
+    if (item) {
+      setItem({
+        ...item,
+        poster: FALLBACK_IMAGE
+      });
+    }
+  };
+  
+  // Handler functions for media playback
+  const handlePlay = (episode?: MediaItem) => {
+    if (episode || item) {
+      setSelectedEpisode(episode || (item as MediaItem));
+      setShowVideoPlayer(true);
+    }
+  };
+  
   const handlePlayerClose = () => {
-    setShowPlayer(false);
+    setShowVideoPlayer(false);
+    setSelectedEpisode(null);
   };
   
-  // For series with episodes, handle episode selection
   const handleEpisodeSelect = (episode: MediaItem) => {
-    if (episode.id === activeItem?.id) return;
-    setActiveItem(episode);
+    if (episode) {
+      setSelectedEpisode(episode);
+      setShowVideoPlayer(true);
+    }
   };
   
-  // Get episodes for a series
   const getEpisodesForSeries = (seriesId: string): MediaItem[] => {
     return allItems.filter(item => 
-      item.type === 'series' && 
-      item.parentId === seriesId
-    ).sort((a, b) => {
-      // Sort by season then episode
-      const seasonA = parseInt(a.season || '0');
-      const seasonB = parseInt(b.season || '0');
-      
-      if (seasonA !== seasonB) {
-        return seasonA - seasonB;
-      }
-      
-      return parseInt(a.episode || '0') - parseInt(b.episode || '0');
-    });
+      (item.type === 'series' || item.type === 'episode') && 
+      item.seriesId === seriesId
+    );
   };
   
-  // Get episodes if item is a series
-  const seriesEpisodes = isSeries && item ? getEpisodesForSeries(item.id) : [];
+  const handleSeasonChange = (season: string) => {
+    setCurrentSeason(season);
+    
+    // Animate the season change
+    const seasonElement = document.getElementById(`season-${season}`);
+    if (seasonElement) {
+      gsap.fromTo(
+        seasonElement,
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }
+      );
+    }
+  };
   
-  // Detectar se é dispositivo mobile
-  useEffect(() => {
-    const checkIfMobile = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-    
-    // Verificar no carregamento
-    checkIfMobile();
-    
-    // Adicionar listener para redimensionamento
-    window.addEventListener('resize', checkIfMobile);
-    
-    // Limpar listener
-    return () => window.removeEventListener('resize', checkIfMobile);
-  }, []);
+  // Check if the media is a movie or series
+  const isMovie = item?.type === 'movie';
+  const isSeries = item?.type === 'series';
   
-  // Show loading state
-  if (dataLoading || isLoading) {
-    return (
-      <DetailContainer>
-        <div style={{ textAlign: 'center', padding: '50px 0' }}>
-          <h2>Carregando conteúdo...</h2>
-        </div>
-      </DetailContainer>
-    );
+  // Get available seasons from episodes
+  const seasons = Object.keys(seasonEpisodes).sort();
+  
+  // Get current season episodes
+  const currentSeasonEpisodes = currentSeason ? seasonEpisodes[currentSeason] || [] : [];
+  
+  if (loading) {
+    return <div>Carregando...</div>;
   }
   
-  // Show error state
-  if (dataError) {
-    return (
-      <DetailContainer>
-        <div style={{ textAlign: 'center', padding: '50px 0' }}>
-          <h2>Erro ao carregar o conteúdo</h2>
-          <p>Não foi possível carregar os detalhes. Por favor, tente novamente mais tarde.</p>
-          <Button variant="outline" onClick={goBack}>
-            Voltar
-          </Button>
-        </div>
-      </DetailContainer>
-    );
-  }
-  
-  // Show not found state
   if (!item) {
     return (
-      <DetailContainer>
-        <NotFound>
-          <h2>Conteúdo não encontrado</h2>
-          <p>O item que você está procurando não existe ou foi removido.</p>
-          <Button variant="outline" onClick={goBack}>
-            Voltar
-          </Button>
-        </NotFound>
-      </DetailContainer>
+      <NotFound>
+        <h2>Mídia não encontrada</h2>
+        <p>O item que você está procurando não foi encontrado na nossa base de dados.</p>
+        <Button onClick={goBack}>Voltar para a página anterior</Button>
+      </NotFound>
     );
   }
   
-  // Determine the image source
-  const imageSource = imageError || !item.logo ? FALLBACK_IMAGE : item.logo;
-  
   return (
-    <DetailContainer className="media-detail">
-      <BackButton onClick={goBack}>
-        <span className="icon">←</span> Voltar
-      </BackButton>
+    <DetailContainer ref={containerRef}>
+      <BackdropImage bgUrl={item.poster || item.logo || item.tvgLogo || FALLBACK_IMAGE} />
       
-      <MediaContent>
-        {/* No mobile, a imagem é mostrada primeiro, depois os detalhes */}
-        {isMobile && (
-          <MediaInfo>
-            <PosterImage 
-              bgUrl={!imageError ? (item.logo || FALLBACK_IMAGE) : FALLBACK_IMAGE}
-              className={!item.logo || imageError ? 'placeholder' : ''}
-              onError={handleImageError}
-            >
-              {(!item.logo || imageError) && (
-                <div>Sem imagem disponível</div>
-              )}
-            </PosterImage>
-          </MediaInfo>
-        )}
+      <ContentWrapper>
+        <BackButton onClick={goBack}>
+          <span className="icon">←</span> Voltar
+        </BackButton>
         
-        <div>
-          {showPlayer && activeItem && (
-            <Modal onClose={handlePlayerClose}>
-              <VideoPlayer 
-                item={activeItem}
-                url={activeItem.url}
-                title={activeItem.name}
-                onClose={handlePlayerClose}
-                episodes={isSeries && item ? seriesEpisodes : []}
-                currentEpisode={activeItem}
-                onEpisodeSelect={handleEpisodeSelect}
-                autoPlay={false}
-              />
-            </Modal>
-          )}
-          
-          <Title>{item.name}</Title>
-          
-          <MetaInfo>
-            {item.type && (
-              <MetaItem>
-                <span className="icon">📺</span>
-                {item.type === 'movie' ? 'Filme' : item.type === 'series' ? 'Série' : 'Canal'}
-              </MetaItem>
-            )}
+        {/* Botão para limpar cache - útil para depuração */}
+        <BackButton 
+          onClick={() => {
+            localStorage.clear();
+            window.location.reload();
+          }}
+          style={{ marginLeft: '10px' }}
+        >
+          <span className="icon">🔄</span> Recarregar dados
+        </BackButton>
+        
+        <MediaContent>
+          <MediaInfo>
+            <Title>{item.name}</Title>
             
-            {item.genre && (
-              <MetaItem>
-                <span className="icon">🎭</span>
-                {item.genre}
-              </MetaItem>
-            )}
+            <MetaInfo>
+              {item.year && (
+                <MetaItem>
+                  <span className="icon">📅</span> {item.year}
+                </MetaItem>
+              )}
+              {item.category && (
+                <MetaItem>
+                  <span className="icon">🏷️</span> {item.category}
+                </MetaItem>
+              )}
+              {item.type && (
+                <MetaItem>
+                  <span className="icon">{item.type === 'movie' ? '🎬' : '📺'}</span> 
+                  {item.type === 'movie' ? 'Filme' : 'Série'}
+                </MetaItem>
+              )}
+              {item.country && (
+                <MetaItem>
+                  <span className="icon">🌍</span> {item.country}
+                </MetaItem>
+              )}
+            </MetaInfo>
             
-            {item.year && (
-              <MetaItem>
-                <span className="icon">📅</span>
-                {item.year}
-              </MetaItem>
-            )}
-            
-            {!isMobile && item.group && (
-              <MetaItem>
-                <span className="icon">🏷️</span>
-                {item.group}
-              </MetaItem>
-            )}
-          </MetaInfo>
-          
-          {item.description && (
             <Description>
-              <p>{item.description}</p>
+              <p>{item.description || 'Sem descrição disponível.'}</p>
             </Description>
-          )}
-          
-          {/* Exibir Player Button for non-series items or series with direct URL */}
-          {(item.type !== 'series' || (item.type === 'series' && item.url && item.url.trim() !== '')) && (
-            <Button 
-              onClick={handlePlay} 
-              icon="▶️" 
-              variant="primary"
-              style={{ width: isMobile ? '100%' : 'auto' }}
-            >
-              Assistir Agora
-            </Button>
-          )}
-          
-          {/* Series episodes */}
-          {item.type === 'series' && Object.keys(episodesBySeasons).length > 0 && (
-            <SeasonsContainer>
-              <SectionTitle>Episódios</SectionTitle>
-              {Object.entries(episodesBySeasons).map(([season, seasonEpisodes]) => (
-                <SeasonSection key={season}>
-                  <SeasonTitle>{season}</SeasonTitle>
-                  <EpisodesList>
-                    {seasonEpisodes.map(episode => (
-                      <EpisodeItem key={episode.id} onClick={() => {
-                        setActiveItem(episode);
-                        setShowPlayer(true);
-                      }}>
-                        <EpisodeNumber>
-                          {episode.season && episode.episode && `E${episode.episode}`}
-                        </EpisodeNumber>
-                        <EpisodeInfo>
-                          <EpisodeTitle>{episode.name}</EpisodeTitle>
-                          {!isMobile && episode.description && (
-                            <EpisodeDescription>
-                              {episode.description.slice(0, 100)}
-                              {episode.description.length > 100 ? '...' : ''}
-                            </EpisodeDescription>
-                          )}
-                        </EpisodeInfo>
-                        <PlayButton>▶️</PlayButton>
-                      </EpisodeItem>
-                    ))}
-                  </EpisodesList>
-                </SeasonSection>
-              ))}
-            </SeasonsContainer>
-          )}
-        </div>
-        
-        {/* No desktop, a imagem é mostrada ao lado dos detalhes */}
-        {!isMobile && (
-          <MediaInfo>
-            <PosterImage 
-              bgUrl={!imageError ? (item.logo || FALLBACK_IMAGE) : FALLBACK_IMAGE}
-              className={!item.logo || imageError ? 'placeholder' : ''}
-              onError={handleImageError}
-            >
-              {(!item.logo || imageError) && (
-                <div>Sem imagem disponível</div>
+            
+            <ActionButtons>
+              {isMovie && (
+                <PlayButton 
+                  variant="primary" 
+                  onClick={() => handlePlay()}
+                  iconPosition="left"
+                  icon="▶️"
+                >
+                  Assistir Agora
+                </PlayButton>
               )}
-            </PosterImage>
+              
+              {isSeries && seasons.length > 0 && (
+                <PlayButton 
+                  variant="primary" 
+                  onClick={() => {
+                    // Play first episode of current season
+                    if (currentSeasonEpisodes.length > 0) {
+                      handlePlay(currentSeasonEpisodes[0]);
+                    }
+                  }}
+                  iconPosition="left"
+                  icon="▶️"
+                >
+                  Assistir Agora
+                </PlayButton>
+              )}
+            </ActionButtons>
+            
+            {isSeries && seasons.length > 0 && (
+              <SeasonsContainer>
+                <SectionTitle>Temporadas</SectionTitle>
+                
+                <SeasonSelector>
+                  {seasons.map(season => (
+                    <SeasonButton
+                      key={season}
+                      active={season === currentSeason}
+                      onClick={() => handleSeasonChange(season)}
+                    >
+                      {season.replace('S', 'Temporada ')}
+                    </SeasonButton>
+                  ))}
+                </SeasonSelector>
+                
+                {currentSeason && (
+                  <SeasonSection id={`season-${currentSeason}`}>
+                    <SeasonTitle>{currentSeason.replace('S', 'Temporada ')}</SeasonTitle>
+                    
+                    <EpisodesList>
+                      {currentSeasonEpisodes.map(episode => (
+                        <EpisodeCard 
+                          key={episode.id} 
+                          onClick={() => handleEpisodeSelect(episode)}
+                        >
+                          <EpisodeImage bgUrl={episode.poster || episode.logo || episode.tvgLogo || item.poster || FALLBACK_IMAGE}>
+                            <span className="play-icon">▶️</span>
+                          </EpisodeImage>
+                          <EpisodeInfo>
+                            <EpisodeTitle>{episode.name}</EpisodeTitle>
+                            <EpisodeNumber>
+                              {episode.episode ? `Episódio ${episode.episode}` : 'Episódio'}
+                            </EpisodeNumber>
+                          </EpisodeInfo>
+                        </EpisodeCard>
+                      ))}
+                    </EpisodesList>
+                  </SeasonSection>
+                )}
+              </SeasonsContainer>
+            )}
           </MediaInfo>
+          
+          <PosterImage 
+            bgUrl={item.poster || item.logo || item.tvgLogo || FALLBACK_IMAGE} 
+            className={!item.poster && !item.logo && !item.tvgLogo ? 'placeholder' : ''}
+            onError={handleImageError}
+          >
+            {!item.poster && !item.logo && !item.tvgLogo && 'Sem Imagem'}
+          </PosterImage>
+        </MediaContent>
+        
+        {relatedItems.length > 0 && (
+          <RelatedContent>
+            <SectionTitle>Conteúdo Relacionado</SectionTitle>
+            <MediaRow 
+              title={`Mais de ${item.category}`} 
+              items={relatedItems} 
+            />
+          </RelatedContent>
         )}
-      </MediaContent>
+      </ContentWrapper>
       
-      {/* Related content section */}
-      {relatedItems.length > 0 && (
-        <RelatedContent>
-          <h2>Conteúdo Relacionado</h2>
-          <MediaRow items={relatedItems} title="" />
-        </RelatedContent>
+      {showVideoPlayer && selectedEpisode && (
+        <Modal onClose={handlePlayerClose} fullWidth>
+          <VideoPlayer 
+            url={selectedEpisode.url} 
+            title={selectedEpisode.name} 
+            onClose={handlePlayerClose}
+          />
+        </Modal>
       )}
     </DetailContainer>
   );

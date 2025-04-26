@@ -12,15 +12,23 @@ interface HeroProps {
 const HeroContainer = styled.div`
   position: relative;
   width: 100%;
-  height: 80vh;
+  height: 85vh;
   max-height: 800px;
   min-height: 500px;
   overflow: hidden;
   margin-bottom: ${({ theme }) => theme.spacing.xl};
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  box-shadow: ${({ theme }) => theme.shadows.large};
+  transition: transform 0.3s ease;
+  
+  &:hover {
+    transform: scale(1.005);
+  }
   
   @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
     height: 60vh;
     min-height: 400px;
+    border-radius: ${({ theme }) => theme.borderRadius.md};
   }
 `;
 
@@ -31,7 +39,7 @@ const HeroSlide = styled.div<{ active: boolean }>`
   width: 100%;
   height: 100%;
   opacity: ${({ active }) => (active ? 1 : 0)};
-  transition: opacity 1s ease;
+  transition: opacity 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   z-index: ${({ active }) => (active ? 1 : 0)};
   display: flex;
   align-items: center;
@@ -47,7 +55,7 @@ const HeroBackground = styled.div<{ bgUrl?: string }>`
   background-position: center;
   background-image: ${({ bgUrl }) => bgUrl ? `url(${bgUrl})` : 'none'};
   
-  &::after {
+  &::before {
     content: '';
     position: absolute;
     top: 0;
@@ -56,19 +64,41 @@ const HeroBackground = styled.div<{ bgUrl?: string }>`
     height: 100%;
     background: linear-gradient(
       to right,
-      rgba(0, 0, 0, 0.8) 0%,
+      rgba(0, 0, 0, 0.9) 0%,
       rgba(0, 0, 0, 0.6) 50%,
-      rgba(0, 0, 0, 0.4) 100%
+      rgba(0, 0, 0, 0.3) 100%
     );
+    z-index: 1;
+  }
+  
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 30%;
+    background: linear-gradient(
+      to top,
+      rgba(20, 20, 20, 1) 0%,
+      rgba(20, 20, 20, 0) 100%
+    );
+    z-index: 1;
   }
 `;
 
 const HeroContent = styled.div`
   position: relative;
   z-index: 2;
-  max-width: 600px;
+  max-width: 650px;
   padding: ${({ theme }) => theme.spacing.xxl};
   color: ${({ theme }) => theme.colors.text};
+  animation: slideUp 0.8s ease-out forwards;
+  
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
   
   @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
     padding: ${({ theme }) => theme.spacing.lg};
@@ -77,18 +107,26 @@ const HeroContent = styled.div`
 `;
 
 const Title = styled.h1`
-  font-size: 3rem;
-  font-weight: 700;
+  font-size: 3.5rem;
+  font-weight: 800;
   margin-bottom: ${({ theme }) => theme.spacing.md};
+  letter-spacing: -0.5px;
+  background: linear-gradient(90deg, ${({ theme }) => theme.colors.text} 0%, rgba(255, 255, 255, 0.8) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
   
   @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
-    font-size: 2rem;
+    font-size: 2.2rem;
   }
 `;
 
 const Description = styled.p`
-  font-size: 1.125rem;
+  font-size: 1.2rem;
+  line-height: 1.6;
   margin-bottom: ${({ theme }) => theme.spacing.lg};
+  opacity: 0.9;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
   
   @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
     font-size: 1rem;
@@ -97,18 +135,30 @@ const Description = styled.p`
 
 const InfoTag = styled.span`
   display: inline-block;
-  background-color: rgba(255, 255, 255, 0.2);
-  padding: ${({ theme }) => `${theme.spacing.xs} ${theme.spacing.sm}`};
+  background: linear-gradient(135deg, ${({ theme }) => theme.colors.backgroundLight} 0%, rgba(31, 31, 31, 0.7) 100%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: ${({ theme }) => `${theme.spacing.xs} ${theme.spacing.md}`};
   margin-right: ${({ theme }) => theme.spacing.sm};
   margin-bottom: ${({ theme }) => theme.spacing.sm};
-  border-radius: ${({ theme }) => theme.borderRadius.sm};
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
   font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
 `;
 
 const ButtonsContainer = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing.md};
-  margin-top: ${({ theme }) => theme.spacing.lg};
+  margin-top: ${({ theme }) => theme.spacing.xl};
   
   @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
     flex-direction: column;
@@ -138,12 +188,49 @@ const SlideIndicator = styled.button<{ active: boolean }>`
     active ? theme.colors.primary : 'rgba(255, 255, 255, 0.3)'};
   border: none;
   cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  transform: ${({ active }) => active ? 'scale(1.2)' : 'scale(1)'};
   
   &:hover {
-    transform: scale(1.2);
+    transform: scale(1.3);
     background-color: ${({ active, theme }) => 
       active ? theme.colors.secondary : 'rgba(255, 255, 255, 0.5)'};
+  }
+`;
+
+// Controles de navegação para desktop
+const NavButton = styled.button<{ direction: 'prev' | 'next' }>`
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  ${({ direction }) => direction === 'prev' ? 'left: 20px;' : 'right: 20px;'}
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease, background-color 0.3s ease;
+  
+  ${HeroContainer}:hover & {
+    opacity: 0.8;
+  }
+  
+  &:hover {
+    background: ${({ theme }) => theme.colors.primary};
+    opacity: 1;
+    transform: translateY(-50%) scale(1.1);
+  }
+  
+  @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
+    display: none;
   }
 `;
 
@@ -164,7 +251,7 @@ const Hero: React.FC<HeroProps> = ({ items }) => {
       if (!isAnimating) {
         goToNextSlide();
       }
-    }, 6000);
+    }, 7000);
     
     return () => clearInterval(interval);
   }, [currentSlide, isAnimating, displayItems.length]);
@@ -196,6 +283,10 @@ const Hero: React.FC<HeroProps> = ({ items }) => {
   
   const goToNextSlide = () => {
     setCurrentSlide((prev) => (prev + 1) % displayItems.length);
+  };
+  
+  const goToPrevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + displayItems.length) % displayItems.length);
   };
   
   if (displayItems.length === 0) {
@@ -230,7 +321,7 @@ const Hero: React.FC<HeroProps> = ({ items }) => {
             <ButtonsContainer>
               <Link to={`/${item.type}s/${item.id}`}>
                 <Button variant="primary" size="large" icon="▶">
-                  Assistir
+                  Assistir Agora
                 </Button>
               </Link>
               <Link to={`/${item.type}s`}>
@@ -243,14 +334,35 @@ const Hero: React.FC<HeroProps> = ({ items }) => {
         </HeroSlide>
       ))}
       
+      {/* Navegação lateral */}
+      {displayItems.length > 1 && (
+        <>
+          <NavButton 
+            direction="prev" 
+            onClick={goToPrevSlide}
+            aria-label="Slide anterior"
+          >
+            &#8592;
+          </NavButton>
+          <NavButton 
+            direction="next" 
+            onClick={goToNextSlide}
+            aria-label="Próximo slide"
+          >
+            &#8594;
+          </NavButton>
+        </>
+      )}
+      
+      {/* Indicadores de slide */}
       {displayItems.length > 1 && (
         <SlideControls>
           {displayItems.map((_, index) => (
             <SlideIndicator 
               key={index} 
-              active={index === currentSlide} 
+              active={index === currentSlide}
               onClick={() => goToSlide(index)}
-              aria-label={`Slide ${index + 1}`}
+              aria-label={`Ir para slide ${index + 1}`}
             />
           ))}
         </SlideControls>

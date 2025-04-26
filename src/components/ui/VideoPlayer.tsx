@@ -32,6 +32,7 @@ const PlayerContainer = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   
   @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
     margin: 0;
@@ -48,6 +49,7 @@ const PlayerWrapper = styled.div`
   min-height: 200px; /* Altura mínima para garantir que o player seja visível */
   background-color: #000;
   width: 100%;
+  border-radius: inherit;
   
   @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
     border-radius: 0;
@@ -62,26 +64,30 @@ const PlayerInner = styled.div`
   left: 0;
   width: 100%;
   height: 100%;
+  transition: transform 0.2s ease-out;
 `;
 
 const PlayerHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: ${({ theme }) => theme.spacing.md};
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent);
+  padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.lg}`};
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent);
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   z-index: 10;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 `;
 
 const PlayerTitle = styled.h2`
   margin: 0;
   color: ${({ theme }) => theme.colors.text};
   font-size: 1.25rem;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
   
   @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
     font-size: 0.9rem;
@@ -94,38 +100,45 @@ const PlayerControls = styled.div<{ visible: boolean }>`
   left: 0;
   right: 0;
   padding: ${({ theme }) => theme.spacing.md};
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
   display: flex;
   flex-direction: column;
   align-items: center;
   opacity: ${({ visible }) => (visible ? 1 : 0)};
-  transition: opacity 0.3s ease;
+  transform: translateY(${({ visible }) => (visible ? 0 : '10px')});
+  transition: opacity 0.3s ease, transform 0.3s ease;
   z-index: 10;
   padding-bottom: 20px; /* Mais espaço na parte inferior */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 `;
 
 const ProgressBar = styled.div`
-  height: 8px; /* Barra de progresso mais alta */
+  height: 6px; /* Altura ajustada */
   background-color: rgba(255, 255, 255, 0.2);
   width: 100%;
-  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  border-radius: 4px;
   overflow: hidden;
   margin-top: ${({ theme }) => theme.spacing.md};
   cursor: pointer;
   position: relative;
+  transition: height 0.2s ease;
+  
+  &:hover {
+    height: 8px;
+  }
   
   &:hover .progress {
     background-color: ${({ theme }) => theme.colors.primary};
     opacity: 1;
-    height: 10px; /* Aumenta ainda mais ao passar o mouse */
   }
   
   @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
-    height: 6px;
+    height: 4px;
     margin-top: ${({ theme }) => theme.spacing.sm};
     
-    &:hover .progress {
-      height: 8px;
+    &:hover {
+      height: 6px;
     }
   }
 `;
@@ -135,6 +148,28 @@ const Progress = styled.div<{ width: number }>`
   background-color: ${({ theme }) => theme.colors.primary};
   width: ${({ width }) => `${width}%`};
   transition: width 0.1s linear;
+  border-radius: inherit;
+  position: relative;
+  z-index: 2;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translate(50%, -50%);
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: ${({ theme }) => theme.colors.primary};
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.4);
+  }
+  
+  ${ProgressBar}:hover &::after {
+    opacity: 1;
+  }
 `;
 
 const LoadProgress = styled.div<{ width: number }>`
@@ -174,6 +209,7 @@ const TimeDisplay = styled.div`
   color: ${({ theme }) => theme.colors.text};
   font-size: 0.875rem;
   margin: 0 ${({ theme }) => theme.spacing.md};
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   
   @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
     font-size: 0.7rem;
@@ -186,24 +222,43 @@ const ControlButton = styled.button`
   border: none;
   color: white;
   cursor: pointer;
-  width: 50px; /* Aumentando a área clicável */
-  height: 50px; /* Aumentando a área clicável */
+  width: 44px; 
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
+  margin: 0 2px;
+  position: relative;
+  overflow: hidden;
   
-  &:hover {
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    transform: scale(0);
+    transition: transform 0.2s ease;
   }
   
-  &:active {
+  &:hover::before {
+    transform: scale(1);
+  }
+  
+  &:active::before {
     background-color: rgba(255, 255, 255, 0.2);
   }
   
   svg {
     font-size: 1.5rem;
+    position: relative;
+    z-index: 1;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
   }
   
   @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
@@ -225,6 +280,8 @@ const ErrorMessage = styled.div`
   color: ${({ theme }) => theme.colors.text};
   text-align: center;
   height: 300px;
+  background-color: rgba(0, 0, 0, 0.8);
+  border-radius: ${({ theme }) => theme.borderRadius.md};
   
   h3 {
     color: ${({ theme }) => theme.colors.error};
@@ -233,6 +290,8 @@ const ErrorMessage = styled.div`
   
   p {
     margin-bottom: ${({ theme }) => theme.spacing.lg};
+    opacity: 0.9;
+    max-width: 500px;
   }
 `;
 
@@ -247,15 +306,17 @@ const LoadingOverlay = styled.div`
   justify-content: center;
   background-color: rgba(0, 0, 0, 0.7);
   z-index: 5;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
 `;
 
 const LoadingSpinner = styled.div`
   width: 60px;
   height: 60px;
-  border: 5px solid rgba(255, 255, 255, 0.2);
+  border: 4px solid rgba(255, 255, 255, 0.1);
   border-top-color: ${({ theme }) => theme.colors.primary};
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 1s cubic-bezier(0.76, 0.16, 0.24, 0.84) infinite;
   
   @keyframes spin {
     to {
@@ -264,147 +325,18 @@ const LoadingSpinner = styled.div`
   }
 `;
 
-// Novo estilo para o container de episódios
-const EpisodesSection = styled.div`
-  margin-top: 0;
-  border-top: 1px solid ${({ theme }) => theme.colors.border};
-  background-color: ${({ theme }) => theme.colors.backgroundDark};
-  padding: 10px 0;
-  
-  @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
-    margin-top: 0;
-    padding: 5px;
-  }
-`;
-
-const EpisodesTitle = styled.h3`
-  font-size: 1.5rem;
-  margin: 20px 0;
-  color: ${({ theme }) => theme.colors.text};
-  text-align: center;
-  
-  @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
-    font-size: 1.2rem;
-    margin: 10px 0;
-  }
-`;
-
-const EpisodesList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin: 0 auto;
-  max-width: 800px;
-  padding: 0 10px;
-  
-  @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
-    gap: 8px;
-  }
-`;
-
-const EpisodeItem = styled.div<{ isActive: boolean }>`
-  display: flex;
-  align-items: center;
-  padding: 12px;
-  border-radius: ${({ theme }) => theme.borderRadius.md};
-  background-color: ${({ isActive, theme }) =>
-    isActive ? `${theme.colors.primary}22` : theme.colors.backgroundLight};
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-  border: 1px solid ${({ isActive, theme }) =>
-    isActive ? theme.colors.primary : theme.colors.border};
-  
-  &:hover {
-    background-color: ${({ isActive, theme }) =>
-      isActive ? `${theme.colors.primary}33` : `${theme.colors.backgroundLight}aa`};
-  }
-  
-  @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
-    padding: 8px;
-  }
-`;
-
-const EpisodeNumber = styled.div`
-  font-weight: bold;
-  font-size: 1.1rem;
-  color: ${({ theme }) => theme.colors.primary};
-  min-width: 50px;
-`;
-
-const EpisodeInfo = styled.div`
-  flex: 1;
-`;
-
-const EpisodeTitle = styled.div`
-  font-weight: bold;
-  margin-bottom: 5px;
-  font-size: 1rem;
-`;
-
-const EpisodeDescription = styled.div`
-  font-size: 0.875rem;
-  color: ${({ theme }) => theme.colors.textSecondary};
-`;
-
-const PlayButton = styled.div`
-  margin-left: 10px;
-  font-size: 1.5rem;
-`;
-
-// Botões de navegação de episódios
-const NavigationButtons = styled.div`
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin: 15px 0;
-  
-  @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
-    margin: 8px 0;
-  }
-`;
-
-const NavigationButton = styled.button`
-  background-color: ${({ theme }) => theme.colors.backgroundLight};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  color: ${({ theme }) => theme.colors.primary};
-  padding: 8px 15px;
-  border-radius: ${({ theme }) => theme.borderRadius.md};
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-weight: bold;
-  
-  &:hover {
-    background-color: ${({ theme }) => theme.colors.backgroundLight};
-  }
-  
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  
-  svg {
-    font-size: 1rem;
-  }
-  
-  @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
-    padding: 6px 10px;
-    font-size: 0.9rem;
-  }
-`;
-
 const VolumeContainer = styled.div`
   display: flex;
   align-items: center;
   position: relative;
   width: 30px;
-  height: 50px;
+  height: 44px;
   overflow: visible;
   
   &:hover .volume-slider {
     width: 80px;
     opacity: 1;
+    transform: scaleX(1);
   }
   
   @media (max-width: ${({ theme }) => theme.breakpoints.md}) {
@@ -416,12 +348,14 @@ const VolumeContainer = styled.div`
 
 const VolumeSlider = styled.div`
   position: absolute;
-  height: 6px;
+  height: 4px;
   background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
+  border-radius: 4px;
   width: 0;
   opacity: 0;
-  transition: all 0.2s ease;
+  transform: scaleX(0.5);
+  transform-origin: left;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   margin-left: 35px;
   cursor: pointer;
   overflow: hidden;
@@ -436,6 +370,47 @@ const VolumeProgress = styled.div<{ width: number }>`
   height: 100%;
   background-color: ${({ theme }) => theme.colors.primary};
   width: ${({ width }) => `${width}%`};
+  border-radius: inherit;
+`;
+
+// Estilo para controles mobile otimizados
+const MobileControls = styled.div<{ visible: boolean }>`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  opacity: ${({ visible }) => (visible ? 1 : 0)};
+  transition: opacity 0.3s ease;
+  z-index: 10;
+  
+  /* Gradientes aprimorados para visualização dos controles */
+  &:before, &:after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 120px;
+  pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  &:before {
+    top: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+  }
+
+  &:after {
+    bottom: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+  }
 `;
 
 // Check if we're on Netlify
@@ -522,41 +497,6 @@ const ProgressBarComponent = memo(({
   );
 });
 
-// Estilo para controles mobile otimizados
-const MobileControls = styled.div<{ visible: boolean }>`
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  opacity: ${({ visible }) => (visible ? 1 : 0)};
-  transition: opacity 0.3s ease;
-  z-index: 10;
-
-  /* Gradientes para melhorar a visualização dos controles */
-  &:before, &:after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    height: 100px;
-    pointer-events: none;
-  }
-
-  &:before {
-    top: 0;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%);
-  }
-
-  &:after {
-    bottom: 0;
-    background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%);
-  }
-`;
-
 // Componente otimizado para os controles
 const PlayerControlsComponent = memo(({
   visible,
@@ -601,13 +541,30 @@ const PlayerControlsComponent = memo(({
           <PlayerTitle>{playing ? 'Reproduzindo' : 'Pausado'}</PlayerTitle>
         </PlayerHeader>
         
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1 }}>
-          <ControlButton onClick={onTogglePlay} aria-label={playing ? 'Pausar' : 'Reproduzir'} style={{ width: 80, height: 80 }}>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          flex: 1,
+          position: 'relative',
+          zIndex: 15 
+        }}>
+          <ControlButton 
+            onClick={onTogglePlay} 
+            aria-label={playing ? 'Pausar' : 'Reproduzir'} 
+            style={{ 
+              width: 76, 
+              height: 76, 
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)'
+            }}
+          >
             {playing ? <PauseIcon /> : <PlayIcon />}
           </ControlButton>
         </div>
         
-        <div>
+        <div style={{ position: 'relative', zIndex: 15 }}>
           <ProgressBarComponent played={played} loaded={loaded} onSeek={onSeek} />
           
           <ButtonsGroup>
@@ -632,7 +589,7 @@ const PlayerControlsComponent = memo(({
     );
   }
   
-  // Versão desktop original
+  // Versão desktop aprimorada
   return (
     <PlayerControls visible={visible}>
       <ButtonsGroup>
@@ -795,12 +752,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const handleReady = () => {
     setLoading(false);
     
-    // Animate the player
+    // Animate the player com animação mais suave
     if (containerRef.current) {
       gsap.fromTo(
         containerRef.current,
-        { opacity: 0, scale: 0.95 },
-        { opacity: 1, scale: 1, duration: 0.5, ease: "power2.out" }
+        { opacity: 0, scale: 0.98 },
+        { 
+          opacity: 1, 
+          scale: 1, 
+          duration: 0.5, 
+          ease: "power2.out",
+          clearProps: "scale" 
+        }
       );
     }
   };
@@ -896,7 +859,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setError('Erro ao carregar vídeo. O formato pode não ser suportado ou a fonte pode estar indisponível.');
     setLoading(false);
   };
-
+  
   // Process video URL when item changes
   useEffect(() => {
     const sourceUrl = url || (item?.url || '');
@@ -938,7 +901,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         const proxyUrl = getProxyUrl(sourceUrl);
         console.log('Aplicando proxy para URL no Netlify:', proxyUrl);
         setVideoUrl(proxyUrl);
-      } else {
+    } else {
         // Using original URL for local testing
         setVideoUrl(sourceUrl);
       }
@@ -1031,7 +994,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     // Quando o componente montar, dar um tempo e então fazer scroll para ele
     const timer = setTimeout(() => {
       if (containerRef.current) {
-        containerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        containerRef.current.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
       }
     }, 300);
     
@@ -1062,59 +1028,59 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }
   
   return (
-    <PlayerContainer ref={containerRef}>
-      <PlayerWrapper ref={playerWrapperRef}>
+      <PlayerContainer ref={containerRef}>
+        <PlayerWrapper ref={playerWrapperRef}>
         <PlayerHeader style={{ opacity: controlsVisible ? 1 : 0, display: isMobile ? 'none' : 'flex' }}>
           <PlayerTitle>{title || (item?.name || 'Reproduzindo')}</PlayerTitle>
-          <Button 
-            variant="text" 
-            size="small" 
-            onClick={onBack || onClose} 
-            icon="✕"
-          >
+            <Button 
+              variant="text" 
+              size="small" 
+              onClick={onBack || onClose} 
+              icon="✕"
+            >
             Fechar
-          </Button>
-        </PlayerHeader>
-        
-        <PlayerInner>
-          <ReactPlayer
-            ref={playerRef}
-            url={videoUrl}
-            width="100%"
-            height="100%"
-            playing={playing}
-            volume={volume}
-            muted={muted}
-            onReady={handleReady}
-            onError={handleError}
-            onProgress={handleProgress}
-            onDuration={handleDuration}
-            onEnded={handleEnded}
-            controls={false}
+            </Button>
+          </PlayerHeader>
+          
+          <PlayerInner>
+            <ReactPlayer
+              ref={playerRef}
+              url={videoUrl}
+              width="100%"
+              height="100%"
+              playing={playing}
+              volume={volume}
+              muted={muted}
+              onReady={handleReady}
+              onError={handleError}
+              onProgress={handleProgress}
+              onDuration={handleDuration}
+              onEnded={handleEnded}
+              controls={false}
             playsinline={true} /* Importante para mobile */
-            config={{
-              file: {
-                forceVideo: true,
-                attributes: {
-                  crossOrigin: 'anonymous',
-                  controlsList: 'nodownload',
+              config={{
+                file: {
+                  forceVideo: true,
+                  attributes: {
+                    crossOrigin: 'anonymous',
+                    controlsList: 'nodownload',
                   preload: 'auto',
                   playsinline: true
-                },
-                hlsOptions: {
-                  enableWorker: true,
-                  lowLatencyMode: true,
-                  debug: false,
-                  maxLoadingDelay: 4,
-                  minAutoBitrate: 0
-                },
-                forceHLS: false,
-                forceDASH: false
-              }
-            }}
-          />
-        </PlayerInner>
-        
+                  },
+                  hlsOptions: {
+                    enableWorker: true,
+                    lowLatencyMode: true,
+                    debug: false,
+                    maxLoadingDelay: 4,
+                    minAutoBitrate: 0
+                  },
+                  forceHLS: false,
+                  forceDASH: false
+                }
+              }}
+            />
+          </PlayerInner>
+          
         <PlayerControlsComponent 
           visible={controlsVisible}
           playing={playing}
@@ -1132,14 +1098,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           formatTime={formatTime}
           isMobile={isMobile}
         />
-        
-        {loading && (
-          <LoadingOverlay>
-            <LoadingSpinner />
-          </LoadingOverlay>
-        )}
-      </PlayerWrapper>
-    </PlayerContainer>
+          
+          {loading && (
+            <LoadingOverlay>
+              <LoadingSpinner />
+            </LoadingOverlay>
+          )}
+        </PlayerWrapper>
+      </PlayerContainer>
   );
 };
 

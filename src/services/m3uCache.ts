@@ -176,14 +176,29 @@ const findEndOfEntry = (startLine: number): number => {
  * Busca um item específico pelo ID ou nome sem precisar ler todo o arquivo
  */
 export const findItemFromM3U = async (searchId: string, type?: string): Promise<MediaItem | null> => {
+  console.log(`Buscando item com ID: "${searchId}"`);
+  
   // Tentar obter do cache em memória primeiro
   if (cachedItems) {
-    const item = cachedItems.find(item => 
-      item.id === searchId || 
-      item.name?.toLowerCase() === searchId.toLowerCase()
-    );
+    console.log(`Buscando em ${cachedItems.length} itens em cache...`);
+    // Primeiro, tentar buscar por ID exato
+    let item = cachedItems.find(item => item.id === searchId);
+    
+    // Se não encontrou pelo ID exato, tenta buscar por ID parcial
+    if (!item) {
+      item = cachedItems.find(item => item.id.includes(searchId) || searchId.includes(item.id));
+    }
+    
+    // Tentar buscar por nome
+    if (!item) {
+      item = cachedItems.find(item => 
+        item.name.toLowerCase() === searchId.toLowerCase() ||
+        item.name.toLowerCase().includes(searchId.toLowerCase())
+      );
+    }
     
     if (item) {
+      console.log(`Item encontrado no cache: ${item.name}`);
       return item;
     }
   }
@@ -198,7 +213,26 @@ export const findItemFromM3U = async (searchId: string, type?: string): Promise<
   // Encontrar as linhas relevantes
   const itemLines = await findItemLines(searchId, type);
   if (!itemLines) {
-    console.log(`Item "${searchId}" não encontrado no índice`);
+    console.log(`Item "${searchId}" não encontrado no índice, tentando método alternativo...`);
+    
+    // Se falhar a busca indexada, carrega todos os itens e faz uma busca manual
+    const content = await loadLocalPlaylistFromFile();
+    const allItems = parseM3UPlaylist(content);
+    
+    // Busca pelo ID ou nome mais próximo
+    const foundItem = allItems.find(item => 
+      item.id === searchId || 
+      item.id.includes(searchId) || 
+      searchId.includes(item.id) ||
+      item.name.toLowerCase() === searchId.toLowerCase() ||
+      item.name.toLowerCase().includes(searchId.toLowerCase())
+    );
+    
+    if (foundItem) {
+      console.log(`Item encontrado pelo método alternativo: ${foundItem.name}`);
+      return foundItem;
+    }
+    
     return null;
   }
   
@@ -210,7 +244,7 @@ export const findItemFromM3U = async (searchId: string, type?: string): Promise<
   const parsedItems = parseM3UPlaylist(relevantLines);
   
   if (parsedItems.length > 0) {
-    console.log(`Item "${searchId}" encontrado através da busca indexada`);
+    console.log(`Item "${searchId}" encontrado através da busca indexada: ${parsedItems[0].name}`);
     return parsedItems[0];
   }
   

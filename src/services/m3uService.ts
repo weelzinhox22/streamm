@@ -146,6 +146,7 @@ export const parseM3UPlaylist = (content: string): MediaItem[] => {
       const tvgLogoMatch = line.match(/tvg-logo="([^"]*)"/);
       currentItem.tvgLogo = tvgLogoMatch ? tvgLogoMatch[1] : undefined;
       currentItem.logo = currentItem.tvgLogo;
+      currentItem.poster = currentItem.tvgLogo;
       
       // Extract group information - RESPEITE O FORMATO ORIGINAL
       const groupMatch = line.match(/group-title="([^"]*)"/);

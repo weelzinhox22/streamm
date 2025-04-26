@@ -126,39 +126,45 @@ export const useM3UData = () => {
     return byGenre;
   }, []);
   
-  // Fetch all data
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setState(prev => ({ ...prev, loading: true, error: null }));
-        
-        // Get data from M3U service
-        const result = await loadM3UData();
-        
-        // Organize content by genre
-        const contentByGenre = organizeContentByGenre(result.allItems);
-        
-        setState({
-          ...result,
-          searchResults: [],
-          searchTerm: '',
-          contentByGenre,
-          loading: false,
-          error: null
-        });
-        setFilteredItems(result.items);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        setState(prev => ({
-          ...prev,
-          loading: false,
-          error: error instanceof Error ? error : new Error('Erro desconhecido ao carregar dados')
-        }));
-      }
-    };
-
-    fetchData();
+  // Fetch all data function
+  const fetchData = useCallback(async () => {
+    try {
+      setState(prev => ({ ...prev, loading: true, error: null }));
+      
+      // Get data from M3U service
+      const result = await loadM3UData();
+      
+      // Organize content by genre
+      const contentByGenre = organizeContentByGenre(result.allItems);
+      
+      setState({
+        ...result,
+        searchResults: [],
+        searchTerm: '',
+        contentByGenre,
+        loading: false,
+        error: null
+      });
+      setFilteredItems(result.items);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      setState(prev => ({
+        ...prev,
+        loading: false,
+        error: error instanceof Error ? error : new Error('Erro desconhecido ao carregar dados')
+      }));
+    }
   }, [organizeContentByGenre]);
+
+  // Function to manually refresh data
+  const refreshData = useCallback(() => {
+    return fetchData();
+  }, [fetchData]);
+
+  // Fetch data on mount
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   // Search functionality
   const setSearchTerm = useCallback(async (term: string) => {
@@ -211,6 +217,7 @@ export const useM3UData = () => {
     ...state,
     setSearchTerm,
     filteredItems,
+    refreshData,
     
     // Helper function to get pagination
     getPaginatedItems: (items: MediaItem[], page: number, itemsPerPage: number = 30) => {
